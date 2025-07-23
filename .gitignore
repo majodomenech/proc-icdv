@@ -1,0 +1,20 @@
+.venv/
+
+# Carpetas temporales
+tmp*/
+*/tmp*/
+*/tmp-*/
+*/tmp-serafin*/
+
+# Entornos virtuales y configuración
+.venv/
+venv/
+
+# Jupyter notebooks
+.ipynb_checkpoints/
+
+# Archivos temporales de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
