@@ -1,5 +1,9 @@
 .venv/
 
+*/output/*
+*/data/*
+*/data-proc/*
+
 # Carpetas temporales
 tmp*/
 */tmp*/
