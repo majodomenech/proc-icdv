@@ -29,7 +29,7 @@ nombre_archivo = 'NMC-20'
 N_ciclos = 10  # Número de ciclos a tomar, si no se especifica, toma todos los del archivo
 
 
-# %% ------- 3. Cargado y procesado datos ----------------------------------------------------
+# %% ------- 3. Cargado y procesado datos, elegir ciclos  ----------------------------------------------------
 
 dict_ciclos, dict_ciclos_sep, indices_ciclos = f.carga_y_procesa_datos(input_file)
 

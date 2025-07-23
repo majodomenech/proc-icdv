@@ -77,10 +77,14 @@ def guardar_ciclos_en_dat(dict_ciclos_sep, carpeta_salida='ciclos_dat'):
                 # Escribir datos (sin índice, tabulado, formato flotante)
                 df.to_csv(f, sep='\t', index=False, header=False, float_format='%.6f')
 
-# no está en uso
-def plot_n_cycles(indices_ciclos, dict, x, y):
+
+def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot'):
     '''
     x,y = 'Time', 'CellV', 'dCapacity/dCellV', 'Q'
+
+    dict es:  
+        dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
+        Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
     '''
 
     plt.figure(figsize=(8,5))
@@ -106,11 +110,14 @@ def plot_n_cycles(indices_ciclos, dict, x, y):
     cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
     cbar.set_label('Cycle number')
 
-    plt.xlabel('Time (s)')
-    plt.ylabel('Voltage (V)')
-    plt.title(f'Voltage vs Time')
+    x_string = x.replace('dCapacity/dCellV', 'dQdV') if x == 'dCapacity/dCellV' else x
+    y_string = y.replace('dCapacity/dCellV', 'dQdV') if y == 'dCapacity/dCellV' else y
+
+    plt.xlabel(f'{x}')
+    plt.ylabel(f'{y}')
+    plt.title(f'{y} vs {x}')
     plt.grid(True)
     plt.legend()
-    #plt.savefig(f'datos/isoterma_J{J}.png', dpi=300)
-    plt.show()
+    plt.savefig(f'./output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
+    #plt.show()
     return
