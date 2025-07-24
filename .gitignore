@@ -3,8 +3,8 @@
 */output/*
 */data/*
 */data-proc/*
-*/data-proc/*.json
-*/data-proc/*.csv
+./data-proc/*.json
+./data-proc/*.csv
 
 # Carpetas temporales
 tmp*/
