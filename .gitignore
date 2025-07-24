@@ -3,6 +3,8 @@
 */output/*
 */data/*
 */data-proc/*
+*/data-proc/*.json
+*/data-proc/*.csv
 
 # Carpetas temporales
 tmp*/
@@ -21,4 +23,3 @@ venv/
 __pycache__/
 *.pyc
 *.pyo
-*.pyd
