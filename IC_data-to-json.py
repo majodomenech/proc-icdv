@@ -15,6 +15,8 @@ import IC_funciones as f
 input_folder = Path('/home/mariajose/proc-icdv/data')
 input_file = input_folder / "NMC_20C_cada3.txt"
 output_folder = Path('/home/mariajose/proc-icdv/data-proc')
+output_folder.mkdir(parents=True, exist_ok=True)  # Create output directory if it doesn't exist
+
 nombre_archivo = 'NMC-20'
 
 # %% ------- 2. Cargado y procesado datos  ----------------------------------------------------
