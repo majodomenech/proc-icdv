@@ -7,7 +7,7 @@ INPUT: archivo .txt exportado de BCycle.
 # %%
 from pathlib import Path
 import json
-import IC_funciones as f
+import funciones_ic as f
 
 # %% ------- 1. Parámetros --------------------------------------------------------------------
 

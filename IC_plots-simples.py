@@ -11,7 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
-import IC_funciones as f
+import funciones_ic as f
 
 # %% ------- Cargar ciclos ------------------------------------------------------------
 input_folder = Path('/home/mariajose/proc-icdv/data-proc')
@@ -33,34 +33,53 @@ indices_ciclos = list(dict_ciclos_sep.keys())
 
 # %% ------- Elegir ciclos ------------------------------------------------------------
 
+# Elijo en todo el rango, equiespaciados
 N_ciclos = 10  # Número de ciclos a tomar, si no se especifica, toma todos los del archivo
-
 indices_ciclos_ = indices_ciclos[:-1] # Quito el último
 indices_ciclos_array = np.array(indices_ciclos_)
-
 ciclos_disponibles = sorted(dict_ciclos_sep.keys())
 ciclos_seleccionados = indices_ciclos_array[np.linspace(0, len(indices_ciclos_array)-1, N_ciclos, dtype=int)]
-
 print("Ciclos seleccionados:", ciclos_seleccionados)
 print(f"son {len(ciclos_seleccionados)} ciclos")
 
-#ciclos_reducidos = [3, 21, 78, 153, 228, 303, 378, 453, 528, 603, 678, 753, 828]
+# Elecciones rangos más pequeños
+N1 = 115  # cantidad de ciclos hasta 99
+N2 = 10  # cantidad de ciclos hasta 200
+indices_hasta_99 = indices_ciclos_array[indices_ciclos_array <= 115]
+#indices_hasta_200 = indices_ciclos_array[(indices_ciclos_array > 99) & (indices_ciclos_array <= 200)]
+indices_hasta_200 = indices_ciclos_array[(indices_ciclos_array <= 200)]
+#seleccion_99 = indices_hasta_99[np.linspace(0, len(indices_hasta_99)-1, N1, dtype=int)]
+seleccion_99 = indices_hasta_99[np.linspace(2, len(indices_hasta_99)-1, dtype=int)]
+seleccion_200 = indices_hasta_200[np.linspace(2, len(indices_hasta_200)-1, N2, dtype=int)]
+print("Ciclos hasta 99:", seleccion_99)
+print("Ciclos hasta 200:", seleccion_200)
 
+#ciclos_seleccionados = indices_ciclos_array
+
+# Elecciones manuales 
+#ciclos_reducidos = [3, 21, 78, 153, 228, 303, 378, 453, 528, 603, 678, 753, 828]
+#ciclos_seleccionados = [2, 99, 192, 300, 414, 504, 600, 702, 801, 897]
+ciclos_seleccionados = [2, 21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
+ciclos_seleccionados = [21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 
 # %% ------- Plots -----------------------------------------------------------------------
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_grafico=nombre_archivo)
+#f.plot_n_cycles_withCurrent(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Time', nombre_grafico=nombre_archivo)
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Q', nombre_grafico=nombre_archivo)
+f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Time', nombre_grafico=nombre_archivo)#+'scatter')
+
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Q', nombre_grafico=nombre_archivo)#+'scatter')
+
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 # %% ------- 10. Plot SoH ---------------------------------------------------------------------
 
+'''
 soh_data = []
 
 # Encontrar la q_max_global
@@ -112,17 +131,28 @@ norm = mcolors.Normalize(vmin=df_soh['ciclo'].min(), vmax=df_soh['ciclo'].max())
 cmap = cm.viridis
 
 # Graficar con colores variables
-plt.figure(figsize=(6, 4))
-sc = plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=norm, edgecolors='k')
+plt.figure(figsize=(7, 5))
+plt.plot(df_soh['ciclo'], df_soh['soh'], linestyle='-', color='gray', label='SoH', zorder=1)
+plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=norm, s=10, zorder=2)
+
+#sc = plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=norm, edgecolors='k', s=60)
 
 # Añadir colorbar
-cbar = plt.colorbar(sc, ticks=df_soh['ciclo'][::2])
-cbar.set_label('Cycle number')
+#cbar = plt.colorbar(sc, ticks=df_soh['ciclo'][::2])
+#cbar.set_label('Cycle number')
 
+# Añadir etiquetas con el número de ciclo
+#for i, row in df_soh.iterrows():
+#    plt.text(row['ciclo'], row['soh'] + 0.5, str(int(row['ciclo'])), ha='center', va='bottom', fontsize=7)
+
+#xticks_filtrados = [x for x in df_soh['ciclo'] if x != 21]
+#plt.xticks(xticks_filtrados)  # Fuerza los ticks a coincidir con los ciclos
+#plt.xticks(df_soh['ciclo'])
 plt.xlabel('Cycle number')
 plt.ylabel('State of Health (%)')
-plt.title(f'SoH vs Cycle {nombre_archivo} (Q_max = {qmax_global:.3f})')
+plt.title(f'SoH vs Cycle {nombre_archivo} (Q_max = {qmax_global:.3f}, para ciclo {ciclo_qmax_global})')
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(output_folder/f'{nombre_archivo}_SoH_vs_cycle_colorido.png', dpi=300)
 plt.show()
+'''
