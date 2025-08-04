@@ -13,8 +13,8 @@ import funciones_ic as f
 
 # Datos editables
 input_folder = Path('/home/mariajose/proc-icdv/data')
-input_file = input_folder / "NMC_20C_cada3.txt"
-output_folder = Path('/home/mariajose/proc-icdv/data-proc')
+input_file = input_folder / "NMC_20C_cada3_dvdq.txt"
+output_folder = Path('/home/mariajose/proc-icdv/tmp')
 output_folder.mkdir(parents=True, exist_ok=True)  # Create output directory if it doesn't exist
 
 nombre_archivo = 'NMC-20'

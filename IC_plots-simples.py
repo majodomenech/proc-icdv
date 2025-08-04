@@ -14,7 +14,7 @@ import matplotlib.colors as mcolors
 import funciones_ic as f
 
 # %% ------- Cargar ciclos ------------------------------------------------------------
-input_folder = Path('/home/mariajose/proc-icdv/data-proc')
+input_folder = Path('/home/mariajose/proc-icdv/tmp')
 nombre_archivo = "NMC-20"
 output_folder = Path('/home/mariajose/proc-icdv/output')
 output_folder.mkdir(parents=True, exist_ok=True)  # Create output directory if it doesn't exist
@@ -28,6 +28,7 @@ dict_ciclos_sep = {
     }
     for ciclo, etapas in raw_dict.items()
 }
+
 
 indices_ciclos = list(dict_ciclos_sep.keys())
 
@@ -60,10 +61,16 @@ print("Ciclos hasta 200:", seleccion_200)
 #ciclos_reducidos = [3, 21, 78, 153, 228, 303, 378, 453, 528, 603, 678, 753, 828]
 #ciclos_seleccionados = [2, 99, 192, 300, 414, 504, 600, 702, 801, 897]
 ciclos_seleccionados = [2, 21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
-ciclos_seleccionados = [21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
+ciclos_seleccionados = [2,21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 
 # %% ------- Plots -----------------------------------------------------------------------
 
+print(dict_ciclos_sep[ciclos_seleccionados[0]]['Ch'].columns)
+
+df_ch = dict_ciclos_sep[ciclos_seleccionados[0]]['Ch']
+df_dis = dict_ciclos_sep[ciclos_seleccionados[0]]['Dis']
+
+print(df_ch.head())
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 #f.plot_n_cycles_withCurrent(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
@@ -76,6 +83,8 @@ f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_graf
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Q', nombre_grafico=nombre_archivo)#+'scatter')
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
+
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
 
 # %% ------- 10. Plot SoH ---------------------------------------------------------------------
 

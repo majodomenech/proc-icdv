@@ -35,17 +35,18 @@ def carga_y_procesa_datos(input_file):
 
     dict_ciclos = {ciclo: grupo.reset_index(drop=True) for ciclo, grupo in df.groupby('#Cycle')}
     dict_ciclos_sep = {}
-    cols = ['Time', 'Current', 'CellV', 'dCapacity/dCellV']
+    cols = ['Time', 'Current', 'CellV', 'dCapacity/dCellV', 'dCellV/dCapacity']
     
     for ciclo, grupo in df.groupby('#Cycle'):
         df_ch = grupo[grupo['filename'].str.contains('Charging')][cols].reset_index(drop=True)
         df_dis = grupo[grupo['filename'].str.contains('Discharging')][cols].reset_index(drop=True)
         
         for df_temp in [df_ch, df_dis]:
-            df_temp['Time'] = df_temp['Time'].str.replace(',', '.', regex=False).astype(float)
-            df_temp['Current'] = df_temp['Current'].str.replace(',', '.', regex=False).astype(float)
-            df_temp['CellV'] = df_temp['CellV'].str.replace(',', '.', regex=False).astype(float)
-            df_temp['dCapacity/dCellV'] = df_temp['dCapacity/dCellV'].str.replace(',', '.', regex=False).astype(float)
+            df_temp['Time'] = df_temp['Time'].str.replace(',', '.', regex=False).astype(float) # hour
+            df_temp['Current'] = df_temp['Current'].str.replace(',', '.', regex=False).astype(float) # mA
+            df_temp['CellV'] = df_temp['CellV'].str.replace(',', '.', regex=False).astype(float) # V
+            df_temp['dCapacity/dCellV'] = df_temp['dCapacity/dCellV'].str.replace(',', '.', regex=False).astype(float) # mAh/V
+            df_temp['dCellV/dCapacity'] = df_temp['dCellV/dCapacity'].str.replace(',', '.', regex=False).astype(float) # V/mAh
             df_temp['Q'] = df_temp['Time'] * (abs(df_temp['Current'])) # mAh #/ 3600
           
         dict_ciclos_sep[ciclo] = {'Ch': df_ch, 'Dis': df_dis}
@@ -53,6 +54,20 @@ def carga_y_procesa_datos(input_file):
     indices_ciclos = list(dict_ciclos.keys())
     print(f"Total de ciclos encontrados: {len(indices_ciclos)}")
     print(f"Ciclos disponibles: {indices_ciclos}")
+    
+    # Imprimir ejemplos de los DataFrames de carga y descarga
+    df_ch = dict_ciclos_sep[indices_ciclos[15]]['Ch']
+    df_dis = dict_ciclos_sep[indices_ciclos[15]]['Dis']
+    print('df_ch:')
+    print(df_ch.shape)
+    print(df_ch.head())
+    print(df_ch.iloc[500:505])
+    print(df_ch.tail())
+    print('df_dis:')
+    print(df_dis.shape)
+    print(df_dis.head())
+    print(df_dis.iloc[500:505])
+    print(df_dis.tail())
 
     return dict_ciclos, dict_ciclos_sep, indices_ciclos
 
@@ -91,7 +106,7 @@ def guardar_ciclos_en_dat(dict_ciclos_sep, carpeta_salida='ciclos_dat'):
 
 def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=False):
     '''
-    x,y = 'Time', 'CellV', 'dCapacity/dCellV', 'Q'
+    x,y = 'Time', 'CellV', 'dCapacity/dCellV', 'dCellV/dCapacity' 'Q'
 
     dict es:  
         dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
@@ -146,23 +161,27 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
     #cbar.set_label('Cycle number')
 
-    x_string = x.replace('dCapacity/dCellV', 'dQdV') if x == 'dCapacity/dCellV' else x
-    y_string = y.replace('dCapacity/dCellV', 'dQdV') if y == 'dCapacity/dCellV' else y
+    x_string = 'dQdV' if x == 'dCapacity/dCellV' else 'dVdQ' if x == 'dCellV/dCapacity' else x
+    y_string = 'dQdV' if y == 'dCapacity/dCellV' else 'dVdQ' if y == 'dCellV/dCapacity' else y
     
     labels_con_unidades = {
         'Time': 'Time (hour)',
         'Q': 'Q (mAh)',
         'CellV': 'CellV (V)',
-        'dCapacity/dCellV': 'dQdV',
+        'dCapacity/dCellV': 'dQdV (mAh/V)',
+        'dCellV/dCapacity': 'dVdQ (V/mAh)',
         'Current': 'Current (A)',
         }
 
     x_label = labels_con_unidades.get(x, x)
     y_label = labels_con_unidades.get(y, y)
     
-
-    plt.ylim(3,4.5)
-    plt.xlim(0,3000)
+    #plt.ylim(-0.002,0.002) # para dV/dQ charge
+    #plt.ylim(0,0.002) # para dV/dQ charge
+    #plt.ylim(-0.002,0) # para dV/dQ discharge
+    #plt.xlim(0,3000)
+    plt.ylim(2.9,4.5)
+    plt.xlim(-60,2950)
     plt.xlabel(f'{x_label}')
     plt.ylabel(f'{y_label}')
     plt.title(f'{y} vs {x}')
