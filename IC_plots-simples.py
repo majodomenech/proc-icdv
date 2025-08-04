@@ -76,7 +76,7 @@ print(df_ch.head())
 #f.plot_n_cycles_withCurrent(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Time', nombre_grafico=nombre_archivo)#+'scatter')
 
@@ -84,7 +84,7 @@ f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_graf
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
 
-#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
 
 # %% ------- 10. Plot SoH ---------------------------------------------------------------------
 
