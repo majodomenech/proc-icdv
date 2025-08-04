@@ -1,16 +1,10 @@
 .venv/
 
-*/output/*
-*/data/*
-*/data-proc/*
-./data-proc/*.json
-./data-proc/*.csv
-./data/*
-
 /output/*
 /data-proc/*.json
 /data-proc/*.csv
 /data/*
+/tmp/*
 
 # Carpetas temporales
 tmp*/
