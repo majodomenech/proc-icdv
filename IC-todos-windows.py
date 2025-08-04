@@ -212,7 +212,6 @@ dqdv_ch_calc = np.gradient(Q_ch, V_ch)
 
 Q_dis = df_dis['Q'].values
 V_dis = df_dis['CellV'].values
-
 dqdv_dis_calc = np.gradient(Q_dis, V_dis)
 
 # Graficar dQ/dV calculado
