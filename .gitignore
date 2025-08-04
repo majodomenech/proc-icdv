@@ -5,6 +5,7 @@
 */data-proc/*
 ./data-proc/*.json
 ./data-proc/*.csv
+./data/*
 
 # Carpetas temporales
 tmp*/
