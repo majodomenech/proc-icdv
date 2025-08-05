@@ -123,14 +123,24 @@ def dqdv_muchos_wl(indices_ciclos,dict):
             V_dis_savgol = savgol_filter(V_dis, window_length=wl, polyorder=polyorder)
             dqdv_dis = np.gradient(Q_dis_savgol, V_dis_savgol)
 
-            ax.plot(V_ch, dqdv_ch, color=color, markersize=0.1)
+            # Plotear modo curva
+            #ax.plot(V_ch, dqdv_ch, color=color, markersize=0.1)
             #ax.plot(V_dis, dqdv_dis, color=color, markersize=0.1)
+            
+            # Plotear modo scatter
+            ax.scatter(V_ch,Q_ch-500, marker='o', linestyle='-',color=color, label=f'Ciclo {i}',s=1)
+            ax.scatter(V_ch, dqdv_ch, color=color, s=1)
+            
+            for idx in range(wl, len(V_ch), wl):
+                ax.axvline(x=V_ch[idx], color=color, linestyle='--', linewidth=0.8)
 
         ax.set_title(f'windowlength={wl}')
         ax.set_xlabel('Voltage (V)')
         #ax.set_ylim(-6000,1000)
         ax.set_ylim(-1000,11000)
         ax.set_ylabel('dQ/dV')
+
+        
 
     # Eliminar subplots vacíos si hay
     for ax in axs[len(windowlengths):]:
@@ -141,6 +151,9 @@ def dqdv_muchos_wl(indices_ciclos,dict):
 
 
 def plot_dqdv(indices_ciclos,dict_ciclos_sep):
+    '''
+    Función simple de plot dqdv con filtro
+    '''
     windowlength = 153  # Longitud de la ventana del filtro
     polyorder = 3 # Orden del polinomio del filtro
 
@@ -178,6 +191,8 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep):
 
         plt.plot(V_ch, dqdv_ch, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
         plt.plot(V_dis, dqdv_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+
+        
         
         # Asegurate de que sea impar
         #if window_length % 2 == 0:
@@ -197,3 +212,238 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep):
     plt.grid(True)
     plt.legend()
     plt.show()
+
+
+
+def extender_señal(indices_ciclos, dict_ciclos_sep):
+    '''
+    Extiende señal conservando la pendiente. Devuelve dict listo para usar con las otras funciones graficadoras.
+    
+    nota: por ahora solo extiende los ciclos charge.
+    '''
+
+    dict_extendido = {}
+
+    windowlength = 153
+    factor = 20
+    n = factor * (windowlength - 1) // 2  # cantidad extendida (mitad de un wl)
+
+    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+
+    for i, color in zip(indices_ciclos, colors):
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        Q_ch = df_ch['Q'].values
+        V_ch = df_ch['CellV'].values
+        Q_dis = df_dis['Q'].values
+        V_dis = df_dis['CellV'].values
+
+        # Extensión en Q: constante en los bordes
+        #Q_ch_ext = np.concatenate([np.full(n, Q_ch[0]), Q_ch, np.full(n, Q_ch[-1])])
+
+        # --- Extensión del eje V ---
+        dV_mean = np.mean(np.diff(V_ch)) # Promedio del paso de voltaje
+        V_start = V_ch[0] - dV_mean * np.arange(n, 0, -1)
+        V_end = V_ch[-1] + dV_mean * np.arange(1, n + 1)
+        V_ch_ext = np.concatenate([V_start, V_ch, V_end])
+
+        # Ajuste lineal en los primeros k puntos (inicio)
+        k=2
+        coef_start = np.polyfit(V_ch[:k], Q_ch[:k], deg=1)  # coef_start[0] = pendiente
+        slope_start = coef_start[0]
+        intercept_start = coef_start[1]
+        print(coef_start)
+
+        # Ajuste lineal en los últimos k puntos (fin)
+        k=100
+        coef_end = np.polyfit(V_ch[-k:], Q_ch[-k:], deg=1)
+        slope_end = coef_end[0]
+        intercept_end = coef_end[1]
+        print(coef_end)
+        
+        # --- Extensión del eje Q ---
+        Q_start = slope_start * V_start + intercept_start
+        Q_end = slope_end * V_end + intercept_end
+        Q_ch_ext = np.concatenate([Q_start, Q_ch, Q_end])
+
+        # Crear nuevos DataFrames
+        df_ch_ext = pd.DataFrame({'Q': Q_ch_ext, 'CellV': V_ch_ext})
+        df_dis_ext = pd.DataFrame({'Q': Q_dis, 'CellV': V_dis})  # sin extensión
+
+        dict_extendido[i] = {
+            'Ch': df_ch_ext,
+            'Dis': df_dis_ext
+        }
+
+    return dict_extendido
+
+
+def extender_señal_y_plot(indices_ciclos, dict_ciclos_sep):
+    '''
+    Extiende señal conservando la pendiente. Devuelve dict listo para usar con las otras funciones graficadoras.
+    
+    nota: por ahora solo extiende los ciclos charge.
+    '''
+
+    dict_extendido = {}
+
+    # Plot derivada con filtro
+    windowlength = 153  # Longitud de la ventana del filtro
+    polyorder = 3 # Orden del polinomio del filtro
+
+    factor = 20 #20
+    n = factor * (windowlength - 1) // 2  # cantidad extendida (mitad de un wl)
+
+    plt.figure(figsize=(8,5))
+    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+
+    count=0
+
+    for i, color in zip(indices_ciclos, colors):
+
+        count+=1
+
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        Q_ch = df_ch['Q'].values
+        V_ch = df_ch['CellV'].values
+        Q_dis = df_dis['Q'].values
+        V_dis = df_dis['CellV'].values
+
+        # Extensión en Q: constante en los bordes
+        #Q_ch_ext = np.concatenate([np.full(n, Q_ch[0]), Q_ch, np.full(n, Q_ch[-1])])
+
+        # --- Extensión del eje V ---
+        dV_mean = np.mean(np.diff(V_ch)) # Promedio del paso de voltaje
+        V_start = V_ch[0] - dV_mean * np.arange(n, 0, -1)
+        V_end = V_ch[-1] + dV_mean * np.arange(1, n + 1)
+        V_ch_ext = np.concatenate([V_start, V_ch, V_end])
+
+        # Ajuste lineal en los primeros k puntos (inicio)
+        k=2
+        coef_start = np.polyfit(V_ch[:k], Q_ch[:k], deg=1)  # coef_start[0] = pendiente
+        slope_start = coef_start[0]
+        intercept_start = coef_start[1]
+        print(coef_start)
+
+        # Ajuste lineal en los últimos k puntos (fin)
+        k=100
+        coef_end = np.polyfit(V_ch[-k:], Q_ch[-k:], deg=1)
+        slope_end = coef_end[0]
+        intercept_end = coef_end[1]
+        print(coef_end)
+        
+        # --- Extensión del eje Q ---
+        Q_start = slope_start * V_start + intercept_start
+        Q_end = slope_end * V_end + intercept_end
+        Q_ch_ext = np.concatenate([Q_start, Q_ch, Q_end])
+
+        # Crear nuevos DataFrames
+        df_ch_ext = pd.DataFrame({'Q': Q_ch_ext, 'CellV': V_ch_ext})
+        df_dis_ext = pd.DataFrame({'Q': Q_dis, 'CellV': V_dis})  # sin extensión
+
+        dict_extendido[i] = {
+            'Ch': df_ch_ext,
+            'Dis': df_dis_ext
+        }
+
+        # Aplica filtro Savitzky-Golay (smooth de la señal extendida)
+        Q_ch_savgol = savgol_filter(Q_ch_ext, window_length=windowlength, polyorder=polyorder)
+        V_ch_savgol = savgol_filter(V_ch_ext, window_length=windowlength, polyorder=polyorder)
+        dqdv_ch_calc = np.gradient(Q_ch_savgol, V_ch_savgol)
+
+        #plt.plot(V_ch_ext,Q_ch_ext-5000, marker='o', linestyle='-',color='orange',markersize=0.1)
+        #plt.plot(V_ch,Q_ch-5000, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+
+        #plt.plot(V_ch_savgol, dqdv_ch_calc, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
+        
+        plt.scatter(V_ch_ext,Q_ch_ext-5000 - count*200, marker='o', linestyle='-',color='orange',s=1)
+        plt.scatter(V_ch,Q_ch-5000 - count*200, marker='o', linestyle='-',color=color, label=f'Ciclo {i}',s=1)
+
+        plt.scatter(V_ch_savgol, dqdv_ch_calc - count*200, marker='o', linestyle='-',color=color,s=1)#, label=f'Ciclo {i}')
+        
+        #for idx in range(windowlength, len(V_ch_ext), windowlength):
+        #    plt.axvline(x=V_ch_ext[idx], color='red', linestyle='--', linewidth=0.8)
+
+    plt.ylim(-7900,8200)
+    plt.xlim(3.2,3.75)
+
+    plt.xlabel('Voltage (V)')
+    plt.ylabel('dQ/dV (mAh/V)')
+    plt.title(f'dQ/dV wl={windowlength}, po={polyorder}')
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    return dict_extendido
+
+
+def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
+    '''
+    Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
+    
+    Nota: por ahora solo trunca los ciclos charge.
+    '''
+    dict_truncado = {}
+
+    # Parámetros del filtro
+    windowlength = 153
+    polyorder = 3
+
+    factor = 1/4
+    n = int(factor * (windowlength - 1)) // 2  # cantidad que se recorta de cada extremo
+    n = 30
+
+    plt.figure(figsize=(9,5.6))
+    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    count = 0
+
+    for i, color in zip(indices_ciclos, colors):
+        count += 1
+
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        Q_ch = df_ch['Q'].values
+        V_ch = df_ch['CellV'].values
+        Q_dis = df_dis['Q'].values
+        V_dis = df_dis['CellV'].values
+
+        # Truncar el eje Q y V
+        #Q_ch_trunc = Q_ch[n:-n]
+        #V_ch_trunc = V_ch[n:-n]
+        Q_ch_trunc = Q_ch[n:]
+        V_ch_trunc = V_ch[n:]
+
+        # Crear nuevos DataFrames
+        df_ch_trunc = pd.DataFrame({'Q': Q_ch_trunc, 'CellV': V_ch_trunc})
+        df_dis_trunc = pd.DataFrame({'Q': Q_dis, 'CellV': V_dis})  # sin truncar
+
+        dict_truncado[i] = {
+            'Ch': df_ch_trunc,
+            'Dis': df_dis_trunc
+        }
+
+        # Aplica filtro Savitzky-Golay
+        Q_ch_savgol = savgol_filter(Q_ch_trunc, window_length=windowlength, polyorder=polyorder)
+        V_ch_savgol = savgol_filter(V_ch_trunc, window_length=windowlength, polyorder=polyorder)
+        dqdv_ch_calc = np.gradient(Q_ch_savgol, V_ch_savgol)
+
+        # Gráficos
+        plt.scatter(V_ch, Q_ch - 5000 - count * 200, marker='o', s=1, color='orange')
+        plt.scatter(V_ch_trunc, Q_ch_trunc - 5000 - count * 200, marker='o', s=1, color=color, label=f'Ciclo {i}')
+        plt.scatter(V_ch_savgol, dqdv_ch_calc - count * 200, marker='o', s=1, color=color)
+
+    #plt.ylim(-7900, 8200)
+    #plt.xlim(3.2, 3.75)
+    plt.xlabel('Voltage (V)')
+    plt.ylabel('dQ/dV (mAh/V)')
+    plt.title(f'dQ/dV (TRUNCADO n={n}) wl={windowlength}, po={polyorder}')
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return dict_truncado

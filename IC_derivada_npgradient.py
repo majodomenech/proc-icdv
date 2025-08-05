@@ -60,10 +60,23 @@ ciclos_seleccionados = [2, 21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 ciclos_seleccionados = [21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 
 # %% ------- Plots -----------------------------------------------------------------------
+
+
+#dict_extendido = func_deriv.extender_señal(ciclos_seleccionados, dict_ciclos_sep)
+
+#func_deriv.dqdv_muchos_wl([ciclos_seleccionados[5]], dict_extendido)
+
+#func_deriv.extender_señal_y_plot(ciclos_seleccionados, dict_ciclos_sep)
+
+func_deriv.truncar_señal_y_plot(ciclos_seleccionados, dict_ciclos_sep)
+
+# %% ------- Pruebas -----------------------------------------------------------------------
+'''
 dict = dict_ciclos_sep
 indices_ciclos = ciclos_seleccionados
 
-indices_ciclos = [21]
+#indices_ciclos = [21]
+indices_ciclos = [ciclos_seleccionados[6]]
 # Estudio resolucion y tamaño ventana
 #func_deriv.resolucion(indices_ciclos,dict)
 
@@ -72,9 +85,9 @@ windowlength = 153  # Longitud de la ventana del filtro
 polyorder = 3 # Orden del polinomio del filtro
 
 def extend_and_smooth(y, window_length, polyorder):
-    '''
+    """
     Extiendo datos para evitar artefacto del borde del suavizado
-    '''
+    """
     factor = 8
     n = factor * (window_length - 1) // 2  # cantidad extendida (mitad de un wl)
     y_ext = np.concatenate([np.full(n, y[0]), y, np.full(n, y[-1])])
@@ -144,13 +157,19 @@ for i, color in zip(indices_ciclos, colors):
     V_ch_savgol = savgol_filter(V_ch_ext, window_length=windowlength, polyorder=polyorder)
     dqdv_ch_calc = np.gradient(Q_ch_savgol, V_ch_savgol)
 
-    plt.plot(V_ch_ext,Q_ch_ext-5000, marker='o', linestyle='-',color='orange',markersize=0.1)
-    plt.plot(V_ch,Q_ch-5000, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+    #plt.plot(V_ch_ext,Q_ch_ext-5000, marker='o', linestyle='-',color='orange',markersize=0.1)
+    #plt.plot(V_ch,Q_ch-5000, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
 
-    plt.plot(V_ch_savgol, dqdv_ch_calc, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
+    #plt.plot(V_ch_savgol, dqdv_ch_calc, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
+    
+    plt.scatter(V_ch_ext,Q_ch_ext-1000, marker='o', linestyle='-',color='orange',s=1)
+    plt.scatter(V_ch,Q_ch-1000, marker='o', linestyle='-',color=color, label=f'Ciclo {i}',s=1)
+
+    plt.scatter(V_ch_savgol, dqdv_ch_calc, marker='o', linestyle='-',color=color,s=1)#, label=f'Ciclo {i}')
+    
     
     for idx in range(windowlength, len(V_ch_ext), windowlength):
-        plt.axvline(x=V_ch_ext[idx], color='gray', linestyle='--', linewidth=0.8)
+        plt.axvline(x=V_ch_ext[idx], color='red', linestyle='--', linewidth=0.8)
 
     # Aplica filtro Savitzky-Golay (smooth de la señal)
     #df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=windowlength, polyorder=polyorder)
@@ -193,7 +212,7 @@ plt.title(f'dQ/dV wl={windowlength}, po={polyorder}')
 plt.grid(True)
 plt.legend()
 plt.show()
-
+'''
 
 
 # --- plot para varios wl ---
