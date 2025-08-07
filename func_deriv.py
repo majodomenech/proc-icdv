@@ -214,7 +214,6 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep):
     plt.show()
 
 
-
 def extender_señal(indices_ciclos, dict_ciclos_sep):
     '''
     Extiende señal conservando la pendiente. Devuelve dict listo para usar con las otras funciones graficadoras.
@@ -447,3 +446,59 @@ def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
     plt.show()
 
     return dict_truncado
+
+
+def detectar_cambios_resolucion(indices_ciclos, dict_ciclos_sep, umbral=1.5):
+    """
+    Detecta y grafica cambios significativos en la resolución de la señal de voltaje.
+    """
+    
+    plt.figure(figsize=(9,5.6))
+    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    count = 0
+
+    for i, color in zip(indices_ciclos, colors):
+        count += 1
+
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        Q_ch = df_ch['Q'].values
+        V_ch = df_ch['CellV'].values
+        Q_dis = df_dis['Q'].values
+        V_dis = df_dis['CellV'].values
+    
+        dV_ch = np.abs(np.diff(V_ch))
+        paso_medio_ch = np.median(dV_ch)
+        indices_cambio_ch = np.where(dV_ch > umbral * paso_medio_ch)[0]
+
+        dV_dis = np.abs(np.diff(V_dis))
+        paso_medio_dis = np.median(dV_dis)
+        indices_cambio_dis = np.where(dV_dis > umbral * paso_medio_dis)[0]
+
+        plt.plot(dV_ch, label='|ΔV|')
+        plt.axhline(paso_medio_ch, color='green', linestyle='--', label='Paso medio')
+        plt.axhline(umbral * paso_medio_ch, color='red', linestyle='--', label=f'Umbral ({umbral}×)')
+        plt.scatter(indices_cambio_ch, dV_ch[indices_cambio_ch], color='red', zorder=5, label='Cambio detectado')
+
+        plt.plot(dV_dis, label='|ΔV|')
+        plt.axhline(paso_medio_dis, color='green', linestyle='--', label='Paso medio')
+        plt.axhline(umbral * paso_medio_dis, color='red', linestyle='--', label=f'Umbral ({umbral}×)')
+        plt.scatter(indices_cambio_dis, dV_dis[indices_cambio_dis], color='red', zorder=5, label='Cambio detectado')
+    
+
+    # Gráfico
+    #plt.figure(figsize=(8, 4))
+    #plt.plot(dV, label='|ΔV|')
+    #plt.axhline(paso_medio, color='green', linestyle='--', label='Paso medio')
+    #plt.axhline(umbral * paso_medio, color='red', linestyle='--', label=f'Umbral ({umbral}×)')
+    #plt.scatter(indices_cambio, dV[indices_cambio], color='red', zorder=5, label='Cambio detectado')
+    plt.xlabel('Índice')
+    plt.ylabel('|ΔV| entre puntos')
+    plt.title(f'Cambios de resolución')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+    return indices_cambio.tolist()
