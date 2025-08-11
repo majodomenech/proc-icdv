@@ -29,8 +29,6 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     plt.figure(figsize=(8,5))
     colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
 
-    q_maxs = []
-
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict[i]['Ch']
         df_dis = dict[i]['Dis']
@@ -47,19 +45,24 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
         else:
             # y vs x Juntos
             
-            # para charge
+            # ------- Charge -------
             plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
-
+            # -- para 1/dVdQ = dQdV vs CellV
+            #plt.plot(x_ch, 1/y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
             
-            # para discharge
+            # ------- Discharge -------
             #plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # para cellV vs Time
+            # -- para cellV vs Time
             #plt.plot(x_dis-np.max(x_ch), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # para cell V vs Q
-            plt.plot(x_dis-np.min(x_dis), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # para Q vs CellV
+            # -- para Q vs cellV
+            #plt.plot(x_dis-np.min(x_dis), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            # -- para CellV vs Q
             #plt.plot(x_dis, y_dis-np.min(y_dis), marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            
+            # -- para Q vs dVdQ
+            plt.plot(x_dis-np.min(x_dis), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            # -- para 1/dVdQ = dQdV vs CellV
+            #plt.plot(x_dis, 1/y_dis, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
+
             # chequeos
             #x_max_ch=np.max(x_ch)
             #x_min_dis=np.min(x_dis)
@@ -94,7 +97,8 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     #plt.ylim(-0.002,0) # para dV/dQ discharge
     #plt.xlim(0,3000)
     #plt.ylim(2.9,4.5)
-    plt.xlim(-60,2650)
+    #plt.xlim(-60,2650)
+    
     plt.xlabel(f'{x_label}')
     plt.ylabel(f'{y_label}')
     plt.title(f'{y} vs {x}')

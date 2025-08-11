@@ -9,6 +9,7 @@ import funciones_ic as f
 from scipy.signal import savgol_filter
 
 import func_deriv as func_deriv
+import func_plots as func_plots
 
 # %% ------- Cargar ciclos ------------------------------------------------------------
 input_folder = Path('/home/mariajose/proc-icdv/tmp')
@@ -72,10 +73,20 @@ ciclos_seleccionados = [21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 
 #func_deriv.detectar_cambios_resolucion([ciclos_seleccionados[5]],dict_ciclos_sep)
 
-# Trunco y luego grafico
-dict_truncado = func_deriv.truncar_señal_y_plot(ciclos_seleccionados, dict_ciclos_sep)
+# ----- Trunco y luego grafico -----
+#dict_truncado = func_deriv.truncar_señal_y_plot(ciclos_seleccionados, dict_ciclos_sep)
+#func_deriv.plot_dqdv(ciclos_seleccionados, dict_truncado)
+#func_deriv.plot_dqdv_muchos_wl(ciclos_seleccionados, dict_truncado)
 
-func_deriv.plot_dqdv(ciclos_seleccionados, dict_truncado)
+# ----- Hago 1/dvdq = dqdv -----
+#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+
+#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
+#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+
+#func_deriv.resolucion_Q(ciclos_seleccionados,dict_ciclos_sep)
+func_deriv.plot_dvdq([ciclos_seleccionados[0]],dict_ciclos_sep)
 
 # %% ------- Pruebas -----------------------------------------------------------------------
 '''
