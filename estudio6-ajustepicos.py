@@ -5,7 +5,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
-import funciones_ic as f
+#import funciones_ic as f
 from scipy.signal import savgol_filter
 
 import func_deriv as func_deriv
