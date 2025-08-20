@@ -167,6 +167,7 @@ def plot_n_cycles_superpuesto(indices_ciclos, dict, x, y, nombre_grafico='plot',
     #plt.show()
     return
 
+
 def plot_n_cycles_withCurrent(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=False):
     '''
     x,y = 'Time', 'CellV', 'dCapacity/dCellV', 'Q'

@@ -18,6 +18,8 @@ Funciones para trabajar con las derivadas IC, DV.
 def resolucion_V(indices_ciclos,dict_ciclos_sep):
     '''
     estudio resolucion datos de voltaje y tamaño ventana de suavizado
+    output: histograma de los puntos por ventana
+
     '''
 
     puntos_por_ventana_ch = []
@@ -90,6 +92,8 @@ def resolucion_V(indices_ciclos,dict_ciclos_sep):
 def resolucion_Q(indices_ciclos,dict_ciclos_sep):
     '''
     estudio resolucion de Q
+    output: histograma de los puntos por ventana
+    
     '''
 
     puntos_por_ventana_ch = []
