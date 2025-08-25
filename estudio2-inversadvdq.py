@@ -1,4 +1,6 @@
+# %%
 from pathlib import Path
+from turtle import color
 import numpy as np
 import json
 import pandas as pd
@@ -62,17 +64,43 @@ ciclos_seleccionados = [21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 # -----------------------------------------------------------------------------------------------------------------------------
 
 # Grafico la dQdV directa de Bview
-func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)
+#   func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)
 
 # Grafico la dQdV obtenida de hacer 1/dVdQ, con dVdQ directa de Bview
-func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)
+#   func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)
 
+# %%
+# Comparo resta
+dQdV_Bview = np.array(dict_ciclos_sep[ciclos_seleccionados[0]]['Ch']['dCapacity/dCellV'])
+inv_dVdQ_Bview = np.array(1 / np.array(dict_ciclos_sep[ciclos_seleccionados[0]]['Ch']['dCellV/dCapacity']))
 
-#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+resta = dQdV_Bview - inv_dVdQ_Bview
+CellV_ch = dict_ciclos_sep[ciclos_seleccionados[0]]['Ch']['CellV']
 
-#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
-#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
-#func_plots.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+plt.figure(figsize=(8,5))
+#plt.plot(CellV_ch, dQdV_Bview, label='dQ/dV')
+#plt.plot(CellV_ch, inv_dVdQ_Bview, label='1/(dV/dQ)')
+plt.plot(CellV_ch, resta, marker='o', linestyle='-',color='purple', markersize=0.1, label=f'resta')
+plt.xlabel(f'CellV')
+plt.ylabel(f'diferencia')
+plt.legend()
+plt.grid(True)
 
-#func_deriv.resolucion_Q(ciclos_seleccionados,dict_ciclos_sep)
-#func_deriv.plot_dvdq([ciclos_seleccionados[0]],dict_ciclos_sep)
+res_real = dQdV_Bview - inv_dVdQ_Bview
+print("residual mean =", np.mean(res_real), "std =", np.std(res_real))
+
+plt.show()
+# %%
+
+for i in indices_ciclos:
+    df_ch = dict_ciclos_sep[i]['Ch']
+    df_dis = dict_ciclos_sep[i]['Dis']
+    df_ch['inv_dVdQ_Bview'] = 1 / df_ch['dCellV/dCapacity']
+    df_dis['inv_dVdQ_Bview'] = 1 / df_dis['dCellV/dCapacity']
+    dict_ciclos_sep[i]['Ch'] = df_ch
+    dict_ciclos_sep[i]['Dis'] = df_dis
+
+# %%
+dict_ciclos_sep[21]['Ch'].to_csv(output_folder / 'df_ch_21.csv', index=False)
+dict_ciclos_sep[21]['Dis'].to_csv(output_folder / 'df_dis_21.csv', index=False)
+
