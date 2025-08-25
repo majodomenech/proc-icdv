@@ -46,23 +46,29 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
             # y vs x Juntos
             
             # ------- Charge -------
-            plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
-            # -- para 1/dVdQ = dQdV vs CellV
-            #plt.plot(x_ch, 1/y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            if x == 'CellV' and y == 'dCellV/dCapacity':
+                # -- para 1/dVdQ = dQdV vs CellV
+                plt.plot(x_ch, 1/y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            else:
+                plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
             
             # ------- Discharge -------
-            #plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # -- para cellV vs Time
-            #plt.plot(x_dis-np.max(x_ch), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # -- para Q vs cellV
-            #plt.plot(x_dis-np.min(x_dis), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # -- para CellV vs Q
-            #plt.plot(x_dis, y_dis-np.min(y_dis), marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # -- para Q vs dVdQ
-            plt.plot(x_dis-np.min(x_dis), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            # -- para 1/dVdQ = dQdV vs CellV
-            #plt.plot(x_dis, 1/y_dis, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
-
+            if x == 'Time':
+                # -- para cellV vs Time
+                plt.plot(x_dis-np.max(x_ch), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            if x == 'Q':
+                # -- para Q vs cellV
+                # -- para Q vs dVdQ
+                plt.plot(x_dis-np.min(x_dis), y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            if y == 'Q':
+                # -- para CellV vs Q
+                plt.plot(x_dis, y_dis-np.min(y_dis), marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            if x == 'CellV' and y == 'dCellV/dCapacity':
+                # -- para 1/dVdQ = dQdV vs CellV
+                plt.plot(x_dis, 1/y_dis, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
+            else:
+                plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            
             # chequeos
             #x_max_ch=np.max(x_ch)
             #x_min_dis=np.min(x_dis)
@@ -92,7 +98,7 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     x_label = labels_con_unidades.get(x, x)
     y_label = labels_con_unidades.get(y, y)
     
-    plt.ylim(-0.0025,0.0025) # para dV/dQ
+    #plt.ylim(-0.0025,0.0025) # para dV/dQ
     #plt.ylim(0,0.002) # para dV/dQ charge
     #plt.ylim(-0.002,0) # para dV/dQ discharge
     #plt.xlim(0,3000)

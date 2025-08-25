@@ -1,3 +1,4 @@
+# %%
 from pathlib import Path
 import numpy as np
 import json
@@ -5,9 +6,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
-#import funciones_ic as f
 from scipy.signal import savgol_filter
-
 import func_deriv as func_deriv
 import func_plots as func_plots
 
@@ -45,3 +44,28 @@ ciclos_seleccionados = indices_ciclos_array[np.linspace(0, len(indices_ciclos_ar
 #ciclos_seleccionados = [2, 99, 192, 300, 414, 504, 600, 702, 801, 897]
 ciclos_seleccionados = [2, 21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 ciclos_seleccionados = [21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
+
+# %% ------- Ajustar picos ------------------------------------------------------------
+
+# Primero trunco datos
+    # charge (wl = 153, truncar los n=30 puntos iniciales)
+    # discharge (wl = 51 = 153 / 3, truncar los n=10=30/3 puntos finales)
+
+dict = func_deriv.truncar_señal(ciclos_seleccionados, dict_ciclos_sep)
+
+dict =  func_deriv.plot_dqdv(ciclos_seleccionados, dict)
+
+'''
+dict = {21: {'Ch': df_ch_21, 'Dis': df_dis_21},
+        99: {'Ch': df_ch_99, 'Dis': df_dis_99},
+        ...
+        }
+'''
+# Exportar a csv para trabajar en Origin
+#dict[21]['Ch'].to_csv(output_folder / 'df_ch_21.csv', index=False)
+#dict[21]['Dis'].to_csv(output_folder / 'df_dis_21.csv', index=False)
+
+# Exportar todos los DataFrames a CSV
+#for ciclo, etapas in dict.items():
+#    etapas['Ch'].to_csv(output_folder / f'df_ch_{ciclo}.csv', index=False)
+#    etapas['Dis'].to_csv(output_folder / f'df_dis_{ciclo}.csv', index=False)
