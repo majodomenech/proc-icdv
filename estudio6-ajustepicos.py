@@ -69,3 +69,5 @@ dict = {21: {'Ch': df_ch_21, 'Dis': df_dis_21},
 #for ciclo, etapas in dict.items():
 #    etapas['Ch'].to_csv(output_folder / f'df_ch_{ciclo}.csv', index=False)
 #    etapas['Dis'].to_csv(output_folder / f'df_dis_{ciclo}.csv', index=False)
+
+
