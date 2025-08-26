@@ -11,7 +11,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
-import funciones_ic as f
+import func_plots as f
 
 # %% ------- Cargar ciclos ------------------------------------------------------------
 input_folder = Path('/home/mariajose/proc-icdv/tmp')
@@ -63,6 +63,8 @@ print("Ciclos hasta 200:", seleccion_200)
 ciclos_seleccionados = [2, 21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 ciclos_seleccionados = [2,21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 
+ciclos_seleccionados = ciclos_disponibles
+
 # %% ------- Plots -----------------------------------------------------------------------
 
 print(dict_ciclos_sep[ciclos_seleccionados[0]]['Ch'].columns)
@@ -82,9 +84,9 @@ print(df_ch.head())
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Q', nombre_grafico=nombre_archivo)#+'scatter')
 
-#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
+f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
 
 # %% ------- 10. Plot SoH ---------------------------------------------------------------------
 
