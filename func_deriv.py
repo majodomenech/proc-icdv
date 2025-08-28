@@ -575,7 +575,7 @@ def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
 
 
 # ----------- CALCULO DERIVADA CON FILTRO SAVITZKY-GOLAY -------------
-def plot_dqdv(indices_ciclos,dict_ciclos_sep):
+def plot_dqdv(indices_ciclos,dict_ciclos_sep, legend=False):
     '''
     Función simple de plot dqdv con filtro
     Actualiza el dict de entrada con los datos de Q y V suavizados y los valores de dVdQ calculados.
@@ -628,7 +628,8 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep):
     plt.ylabel('dQ/dV (mAh/V)')
     plt.title(f'dQ/dV wl_ch={windowlength_ch}, wl_dis={windowlength_dis}, po={polyorder}')
     plt.grid(True)
-    plt.legend()
+    if legend:
+        plt.legend()
     plt.show()
 
     return dict_ciclos_sep
