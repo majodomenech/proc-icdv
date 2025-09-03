@@ -46,14 +46,14 @@ print(f"son {len(ciclos_seleccionados)} ciclos")
 # Elecciones rangos más pequeños
 N1 = 115  # cantidad de ciclos hasta 99
 N2 = 10  # cantidad de ciclos hasta 200
-indices_hasta_99 = indices_ciclos_array[indices_ciclos_array <= 115]
+#indices_hasta_99 = indices_ciclos_array[indices_ciclos_array <= 115]
 #indices_hasta_200 = indices_ciclos_array[(indices_ciclos_array > 99) & (indices_ciclos_array <= 200)]
-indices_hasta_200 = indices_ciclos_array[(indices_ciclos_array <= 200)]
+#indices_hasta_200 = indices_ciclos_array[(indices_ciclos_array <= 200)]
 #seleccion_99 = indices_hasta_99[np.linspace(0, len(indices_hasta_99)-1, N1, dtype=int)]
-seleccion_99 = indices_hasta_99[np.linspace(2, len(indices_hasta_99)-1, dtype=int)]
-seleccion_200 = indices_hasta_200[np.linspace(2, len(indices_hasta_200)-1, N2, dtype=int)]
-print("Ciclos hasta 99:", seleccion_99)
-print("Ciclos hasta 200:", seleccion_200)
+#seleccion_99 = indices_hasta_99[np.linspace(2, len(indices_hasta_99)-1, dtype=int)]
+#seleccion_200 = indices_hasta_200[np.linspace(2, len(indices_hasta_200)-1, N2, dtype=int)]
+#print("Ciclos hasta 99:", seleccion_99)
+#print("Ciclos hasta 200:", seleccion_200)
 
 #ciclos_seleccionados = indices_ciclos_array
 
@@ -63,7 +63,9 @@ print("Ciclos hasta 200:", seleccion_200)
 ciclos_seleccionados = [2, 21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 ciclos_seleccionados = [2,21, 99, 198, 297, 396, 498, 597, 696, 795, 897]
 
-ciclos_seleccionados = ciclos_disponibles
+#ciclos_seleccionados = ciclos_disponibles[:-1]
+
+print(ciclos_seleccionados)
 
 # %% ------- Plots -----------------------------------------------------------------------
 
@@ -78,19 +80,19 @@ print(df_ch.head())
 #f.plot_n_cycles_withCurrent(ciclos_seleccionados, dict_ciclos_sep, 'Time', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 
-#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
+f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'CellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Time', nombre_grafico=nombre_archivo)#+'scatter')
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'Q', nombre_grafico=nombre_archivo)#+'scatter')
 
-f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
+#f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'CellV', 'dCapacity/dCellV', nombre_grafico=nombre_archivo)#+'scatter')
 
 #f.plot_n_cycles(ciclos_seleccionados, dict_ciclos_sep, 'Q', 'dCellV/dCapacity', nombre_grafico=nombre_archivo)#+'scatter')
 
 # %% ------- 10. Plot SoH ---------------------------------------------------------------------
-
 '''
+
 soh_data = []
 
 # Encontrar la q_max_global
@@ -125,14 +127,14 @@ df_soh = pd.DataFrame(soh_data)
 df_soh = df_soh.sort_values('ciclo')
 
 # Graficar
-plt.figure(figsize=(6, 4))
-plt.plot(df_soh['ciclo'], df_soh['soh'], marker='o', linestyle='-', color='tab:red')
-plt.xlabel('Cycle number')
-plt.ylabel('State of Health (%)')
-plt.title(f'SoH vs Cycle {nombre_archivo} (Q_max = {qmax_global:.3f})')
-plt.grid(True)
-plt.tight_layout()
-plt.savefig(output_folder/f'{nombre_archivo}_SoH_vs_cycle.png', dpi=300)
+#plt.figure(figsize=(6, 4))
+#plt.plot(df_soh['ciclo'], df_soh['soh'], marker='o', linestyle='-', color='tab:red')
+#plt.xlabel('Cycle number')
+#plt.ylabel('State of Health (%)')
+#plt.title(f'SoH vs Cycle {nombre_archivo} (Q_max = {qmax_global:.3f})')
+#plt.grid(True)
+#plt.tight_layout()
+#plt.savefig(output_folder/f'{nombre_archivo}_SoH_vs_cycle.png', dpi=300)
 #plt.show()
 
 
@@ -143,8 +145,9 @@ cmap = cm.viridis
 
 # Graficar con colores variables
 plt.figure(figsize=(7, 5))
+plt.rcParams.update({'font.size': 18})
 plt.plot(df_soh['ciclo'], df_soh['soh'], linestyle='-', color='gray', label='SoH', zorder=1)
-plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=norm, s=10, zorder=2)
+plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=norm, s=30, zorder=2)
 
 #sc = plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=norm, edgecolors='k', s=60)
 
@@ -161,9 +164,11 @@ plt.scatter(df_soh['ciclo'], df_soh['soh'], c=df_soh['ciclo'], cmap=cmap, norm=n
 #plt.xticks(df_soh['ciclo'])
 plt.xlabel('Cycle number')
 plt.ylabel('State of Health (%)')
-plt.title(f'SoH vs Cycle {nombre_archivo} (Q_max = {qmax_global:.3f}, para ciclo {ciclo_qmax_global})')
+#plt.title(f'SoH vs Cycle {nombre_archivo} (Q_max = {qmax_global:.3f}, para ciclo {ciclo_qmax_global})')
 plt.grid(True)
 plt.tight_layout()
 plt.savefig(output_folder/f'{nombre_archivo}_SoH_vs_cycle_colorido.png', dpi=300)
 plt.show()
+
+# %%
 '''

@@ -27,6 +27,7 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     '''
 
     plt.figure(figsize=(8,5))
+    #plt.rcParams.update({'font.size': 12})
     colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
@@ -44,14 +45,14 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
             #plt.scatter(x_dis, y_dis, marker='o', linestyle='-',color=color,s=0.1)#,markersize=0.1)
         else:
             # y vs x Juntos
-            
+            '''
             # ------- Charge -------
             if x == 'CellV' and y == 'dCellV/dCapacity':
                 # -- para 1/dVdQ = dQdV vs CellV
                 plt.plot(x_ch, 1/y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
             else:
                 plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
-            
+            '''
             # ------- Discharge -------
             if x == 'Time':
                 # -- para cellV vs Time
@@ -66,9 +67,9 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
             if x == 'CellV' and y == 'dCellV/dCapacity':
                 # -- para 1/dVdQ = dQdV vs CellV
                 plt.plot(x_dis, 1/y_dis, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
-            else:
-                plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-            
+            #else:
+            #    plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+
             # chequeos
             #x_max_ch=np.max(x_ch)
             #x_min_dis=np.min(x_dis)
@@ -105,12 +106,18 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     #plt.ylim(2.9,4.5)
     #plt.xlim(-60,2650)
     
-    plt.xlabel(f'{x_label}')
-    plt.ylabel(f'{y_label}')
-    plt.title(f'{y} vs {x}')
+    plt.xlabel(f'{x_label}', fontsize=16)
+    plt.ylabel(f'{y_label}', fontsize=16)
+    # ticks
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+    plt.legend(fontsize=12)
+
+    plt.title(f'{y} vs {x}', fontsize=12)
     plt.grid(True)
+    
     #plt.legend()
-    #plt.legend()
+    plt.tight_layout()
     plt.savefig(f'./output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
     plt.show()
     return
@@ -168,7 +175,7 @@ def plot_n_cycles_superpuesto(indices_ciclos, dict, x, y, nombre_grafico='plot',
     ax.grid(True)
     ax.legend()
     #ax2.legend()
-    plt.tight_layout()
+    #plt.tight_layout()
     fig.savefig(f'./output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
     #plt.show()
     return
