@@ -7,7 +7,7 @@ Acá listo algunas cosas para trabajar de forma más prolija.
 ```
 proc-icdv/
 ├── README.md
-├── setup/
+├── setup/                 # se corre una vez al clonar el repo
 │   ├── crear-venv.sh
 │   └── requirements.txt
 ├── data/                  # datos originales
@@ -18,8 +18,8 @@ proc-icdv/
 ├── src/                   # código fuente modular
 │   ├── __init__.py
 │   ├── plotting.py        # funciones de graficado estándar.
-│   ├── processing.py      # funciones de carga y procesamiento de datos. Se usa una sola vez sobre las mediciones para crear el json que queda en /tmp.
-│   ├── deriv.py           # funciones de derivadas
+│   ├── processing.py      # funciones de carga y procesamiento de datos.
+│   ├── deriv.py           # funciones que suavizan y calculan derivadas
 │   ├── fitting.py         # ajustes de picos, curvas, etc.
 │   └── ic_main.py         # scripts principales de ejecución
 ├── tmp/                   # archivos temporales generados automáticamente

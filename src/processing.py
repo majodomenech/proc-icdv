@@ -11,7 +11,7 @@ import matplotlib.gridspec as gridspec
 
 '''
 Funciones para cargar y procesar datos de ciclos de carga/descarga de baterías.
-
+Se usa una sola vez sobre las mediciones para crear el json que queda en /tmp.
 '''
 
 # %% -------  Procesamiento de datos --------------------------------------------------------------------
