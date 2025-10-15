@@ -14,210 +14,6 @@ Funciones para trabajar con las derivadas IC, DV.
 
 '''
 
-# ----------- ESTUDIO RESOLUCION --------------------------------------
-def resolucion_V(indices_ciclos,dict_ciclos_sep):
-    '''
-    estudio resolucion datos de voltaje y tamaño ventana de suavizado
-    output: histograma de los puntos por ventana
-
-    '''
-
-    puntos_por_ventana_ch = []
-    puntos_por_ventana_dis = []
-    resoluciones_ch = []
-    resoluciones_dis = []
-
-    for i in indices_ciclos:
-        df_ch = dict_ciclos_sep[i]['Ch']
-        df_dis = dict_ciclos_sep[i]['Dis']
-        Q_ch = df_ch['Q'].values
-        V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
-        V_dis = df_dis['CellV'].values
-
-        # Para ver la resolución y el tamaño de window_length
-        resolucion_prom_ch = np.mean(np.abs(np.diff(V_ch))) # Promedio del salto (paso) entre elementos consecutivos
-        print(f"Salto promedio entre elementos consecutivos (resolución) de V_ch: {resolucion_prom_ch:.4f} V")
-        ventana_en_volt = 0.002  # 2 mV
-        window_length_ch = int(np.round(ventana_en_volt / resolucion_prom_ch))
-        print(f"Ventana de suavizado: {window_length_ch} puntos")
-        
-        resolucion_prom_dis = np.mean(np.abs(np.diff(V_dis)))
-        print(f"Salto promedio entre elementos consecutivos (resolución) de V_dis: {resolucion_prom_dis}")
-        ventana_en_volt = 0.002  # 2 mV
-        window_length_dis = int(np.round(ventana_en_volt / resolucion_prom_dis))
-        print(f"Ventana de suavizado: {window_length_dis} puntos")
-
-        puntos_por_ventana_ch.append(window_length_ch)
-        resoluciones_ch.append(resolucion_prom_ch)
-        puntos_por_ventana_dis.append(window_length_dis)
-        resoluciones_dis.append(resolucion_prom_dis)
-
-    # histograma de resolución de voltaje
-    plt.figure(figsize=(8, 5))
-    ciclos = indices_ciclos
-    ventanas = puntos_por_ventana_ch  # Resolución de voltaje en mV
-    #ventanas = puntos_por_ventana_dis
-
-    plt.bar(ciclos, ventanas, width=50, color='skyblue', label='Charge')
-    plt.yticks(range(0, 18, 1))
-    plt.xticks(indices_ciclos)
-    plt.xlabel('Ciclo')
-    plt.ylabel('Puntos por ventanas de 2 mV')
-    plt.title('Resolución de voltaje según ciclo')
-    plt.grid(True, axis='y')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    # grafico resolución de voltaje
-    plt.figure(figsize=(8, 5))
-    ciclos = indices_ciclos
-    resoluciones = resoluciones_ch  # Resolución de voltaje en mV
-    #resoluciones = resoluciones_dis
-    resoluciones = [r * 1000 for r in resoluciones]
-
-    plt.scatter(ciclos, resoluciones, color='c', label='Charge')
-    plt.ylim(0, 0.8)
-    plt.xticks(indices_ciclos)
-    plt.xlabel('Ciclo')
-    plt.ylabel('Resolución de voltaje (mV)')
-    plt.title('Resolución de voltaje según ciclo')
-    plt.grid(True, axis='y')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-
-def resolucion_Q(indices_ciclos,dict_ciclos_sep):
-    '''
-    estudio resolucion de Q
-    output: histograma de los puntos por ventana
-    
-    '''
-
-    puntos_por_ventana_ch = []
-    puntos_por_ventana_dis = []
-    resoluciones_ch = []
-    resoluciones_dis = []
-
-    for i in indices_ciclos:
-        df_ch = dict_ciclos_sep[i]['Ch']
-        df_dis = dict_ciclos_sep[i]['Dis']
-        Q_ch = df_ch['Q'].values
-        V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
-        V_dis = df_dis['CellV'].values
-
-        # Para ver la resolución y el tamaño de window_length
-        resolucion_prom_ch = np.mean(np.abs(np.diff(Q_ch))) # Promedio del salto (paso) entre elementos consecutivos
-        print(f"Salto promedio entre elementos consecutivos (resolución) de Q_ch: {resolucion_prom_ch:.4f} mAh")
-        #ventana_en_volt = 0.002  # 2 mV
-        #window_length_ch = int(np.round(ventana_en_volt / resolucion_prom_ch))
-        #print(f"Ventana de suavizado: {window_length_ch} puntos")
-        
-        resolucion_prom_dis = np.mean(np.abs(np.diff(Q_dis)))
-        print(f"Salto promedio entre elementos consecutivos (resolución) de Q_dis: {resolucion_prom_dis} mAh")
-        #ventana_en_volt = 0.002  # 2 mV
-        #window_length_dis = int(np.round(ventana_en_volt / resolucion_prom_dis))
-        #print(f"Ventana de suavizado: {window_length_dis} puntos")
-
-        #puntos_por_ventana_ch.append(window_length_ch)
-        resoluciones_ch.append(resolucion_prom_ch)
-        #puntos_por_ventana_dis.append(window_length_dis)
-        resoluciones_dis.append(resolucion_prom_dis)
-
-    # histograma de resolución de voltaje
-    #plt.figure(figsize=(8, 5))
-    #ciclos = indices_ciclos
-    #ventanas = puntos_por_ventana_ch  # Resolución de voltaje en mV
-    #ventanas = puntos_por_ventana_dis
-
-    #plt.bar(ciclos, ventanas, width=50, color='skyblue', label='Charge')
-    #plt.yticks(range(0, 18, 1))
-    #plt.xticks(indices_ciclos)
-    #plt.xlabel('Ciclo')
-    #plt.ylabel('Puntos por ventanas de 2 mV')
-    #plt.title('Resolución de voltaje según ciclo')
-    #plt.grid(True, axis='y')
-    #plt.legend()
-    #plt.tight_layout()
-    #plt.show()
-
-    # grafico resolución de voltaje
-    plt.figure(figsize=(8, 5))
-    ciclos = indices_ciclos
-    resoluciones = resoluciones_ch  # Resolución de Q
-    #resoluciones = resoluciones_dis
-    #resoluciones = [r * 1000 for r in resoluciones]
-
-    plt.scatter(ciclos, resoluciones, color='c', label='Charge')
-    plt.ylim(0.2, 0.35)
-    plt.xticks(indices_ciclos)
-    plt.xlabel('Ciclo')
-    plt.ylabel('Resolución de Q (mAh)')
-    plt.title('Resolución de Q según ciclo')
-    plt.grid(True, axis='y')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-#no se usa
-def detectar_cambios_resolucion(indices_ciclos, dict_ciclos_sep, umbral=1.5):
-    """
-    Detecta y grafica cambios significativos en la resolución de la señal de voltaje.
-    """
-    
-    plt.figure(figsize=(9,5.6))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
-    count = 0
-
-    for i, color in zip(indices_ciclos, colors):
-        count += 1
-
-        df_ch = dict_ciclos_sep[i]['Ch']
-        df_dis = dict_ciclos_sep[i]['Dis']
-
-        Q_ch = df_ch['Q'].values
-        V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
-        V_dis = df_dis['CellV'].values
-    
-        dV_ch = np.abs(np.diff(V_ch))
-        paso_medio_ch = np.median(dV_ch)
-        indices_cambio_ch = np.where(dV_ch > umbral * paso_medio_ch)[0]
-
-        dV_dis = np.abs(np.diff(V_dis))
-        paso_medio_dis = np.median(dV_dis)
-        indices_cambio_dis = np.where(dV_dis > umbral * paso_medio_dis)[0]
-
-        plt.plot(dV_ch, label='|ΔV|')
-        plt.axhline(paso_medio_ch, color='green', linestyle='--', label='Paso medio')
-        plt.axhline(umbral * paso_medio_ch, color='red', linestyle='--', label=f'Umbral ({umbral}×)')
-        plt.scatter(indices_cambio_ch, dV_ch[indices_cambio_ch], color='red', zorder=5, label='Cambio detectado')
-
-        plt.plot(dV_dis, label='|ΔV|')
-        plt.axhline(paso_medio_dis, color='green', linestyle='--', label='Paso medio')
-        plt.axhline(umbral * paso_medio_dis, color='red', linestyle='--', label=f'Umbral ({umbral}×)')
-        plt.scatter(indices_cambio_dis, dV_dis[indices_cambio_dis], color='red', zorder=5, label='Cambio detectado')
-    
-
-    # Gráfico
-    #plt.figure(figsize=(8, 4))
-    #plt.plot(dV, label='|ΔV|')
-    #plt.axhline(paso_medio, color='green', linestyle='--', label='Paso medio')
-    #plt.axhline(umbral * paso_medio, color='red', linestyle='--', label=f'Umbral ({umbral}×)')
-    #plt.scatter(indices_cambio, dV[indices_cambio], color='red', zorder=5, label='Cambio detectado')
-    plt.xlabel('Índice')
-    plt.ylabel('|ΔV| entre puntos')
-    plt.title(f'Cambios de resolución')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-    return indices_cambio.tolist()
-
 
 # ----------- ESTUDIO DERIVADA VARIANDO PARAMETROS FILTRO -------------
 def plot_dqdv_muchos_wl(indices_ciclos,dict):
@@ -456,14 +252,26 @@ def extender_señal_y_plot(indices_ciclos, dict_ciclos_sep):
     return dict_extendido
 
 
-def truncar_señal(indices_ciclos, dict_ciclos_sep):
+def truncar_señal(indices_ciclos, dict_ciclos_sep, n_dis=10, n_ch=30):
     '''
     Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
-    
+    Parámetros
+    ----------
+    indices_ciclos : list[int]
+        Ciclos a procesar.
+    dict_ciclos_sep : dict
+        Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
+    n_dis : int, opcional
+        Número de puntos a truncar al FINAL de la descarga. Por defecto 10.
+    n_ch : int, opcional
+        Número de puntos a truncar al INICIO de la carga. Por defecto 3 * n_dis.
+
+    Retorna
+    -------
+    dict
+        Diccionario con DataFrames truncados por ciclo.
     '''
     dict_truncado = {}
-    n_dis = 10
-    n_ch = n_dis * 3
 
     for i in indices_ciclos:
         df_ch = dict_ciclos_sep[i]['Ch']
@@ -575,16 +383,27 @@ def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
 
 
 # ----------- CALCULO DERIVADA CON FILTRO SAVITZKY-GOLAY -------------
-def plot_dqdv(indices_ciclos,dict_ciclos_sep, legend=False):
+
+def plot_dqdV(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153, polyorder=3):
     '''
     Función simple de plot dqdv con filtro
     Actualiza el dict de entrada con los datos de Q y V suavizados y los valores de dVdQ calculados.
     Devuelve el dict actualizado.
+
+    Parámetros
+    ----------
+    indices_ciclos : list[int]
+        Ciclos a procesar.
+    dict_ciclos_sep : dict
+        Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
+    legend : bool, opcional
+        Si es True, muestra la leyenda en el gráfico. Por defecto es False.
+    wl_dis : int, opcional
+        Longitud de la ventana del filtro Savitzky-Golay para descarga. Debe ser un número impar. Por defecto es 51.
+    wl_ch : int, opcional
+        Longitud de la ventana del filtro Savitzky-Golay para carga. Debe ser un número impar. Por defecto es 3 * wl_dis.
+    polyorder : int, opcional
     '''
-    # Parámetros del filtro
-    windowlength_dis = 51  # Longitud de la ventana del filtro
-    windowlength_ch = 3 * windowlength_dis  
-    polyorder = 3 # Orden del polinomio del filtro
 
     # Graficar dQ/dV calculado
     plt.figure(figsize=(8,5))
@@ -600,11 +419,11 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep, legend=False):
         V_dis = df_dis['CellV'].values
 
         # Aplica filtro Savitzky-Golay (smooth de la señal)
-        df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=windowlength_ch, polyorder=polyorder)
-        df_ch['V_ch_savgol'] = savgol_filter(V_ch, window_length=windowlength_ch, polyorder=polyorder)
-        df_dis['Q_dis_savgol'] = savgol_filter(Q_dis, window_length=windowlength_dis, polyorder=polyorder)
-        df_dis['V_dis_savgol'] = savgol_filter(V_dis, window_length=windowlength_dis, polyorder=polyorder)
-        
+        df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
+        df_ch['V_ch_savgol'] = savgol_filter(V_ch, window_length=wl_ch, polyorder=polyorder)
+        df_dis['Q_dis_savgol'] = savgol_filter(Q_dis, window_length=wl_dis, polyorder=polyorder)
+        df_dis['V_dis_savgol'] = savgol_filter(V_dis, window_length=wl_dis, polyorder=polyorder)
+
         # Calcula dQdV
         df_ch['dqdv_ch_calc'] = np.gradient(df_ch['Q_ch_savgol'].values, df_ch['V_ch_savgol'].values)
         dqdv_ch = df_ch['dqdv_ch_calc'].values
@@ -626,7 +445,7 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep, legend=False):
 
     plt.xlabel('Voltage (V)')
     plt.ylabel('dQ/dV (mAh/V)')
-    plt.title(f'dQ/dV wl_ch={windowlength_ch}, wl_dis={windowlength_dis}, po={polyorder}')
+    plt.title(f'dQ/dV wl_ch={wl_ch}, wl_dis={wl_dis}, po={polyorder}')
     plt.grid(True)
     if legend:
         plt.legend()
@@ -635,16 +454,12 @@ def plot_dqdv(indices_ciclos,dict_ciclos_sep, legend=False):
     return dict_ciclos_sep
 
 
-def plot_dvdq(indices_ciclos,dict_ciclos_sep):
+def plot_dVdq(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153, polyorder=3):
     '''
     Función simple de plot dqdv calculada con filtro Savitzky-Golay.
     Actualiza el dict de entrada con los datos de Q y V suavizados y los valores de dVdQ calculados.
     Devuelve el dict actualizado.
     '''
-    # Parámetros del filtro
-    windowlength_dis = 51  # Longitud de la ventana del filtro
-    windowlength_ch = 3 * windowlength_dis  
-    polyorder = 3 # Orden del polinomio del filtro
 
     # Graficar dVdQ calculado
     plt.figure(figsize=(8,5))
@@ -660,11 +475,11 @@ def plot_dvdq(indices_ciclos,dict_ciclos_sep):
         V_dis = df_dis['CellV'].values
 
         # Aplica filtro Savitzky-Golay (smooth de la señal)
-        df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=windowlength_ch, polyorder=polyorder)
-        df_ch['V_ch_savgol'] = savgol_filter(V_ch, window_length=windowlength_ch, polyorder=polyorder)
-        df_dis['Q_dis_savgol'] = savgol_filter(Q_dis, window_length=windowlength_dis, polyorder=polyorder)
-        df_dis['V_dis_savgol'] = savgol_filter(V_dis, window_length=windowlength_dis, polyorder=polyorder)
-        
+        df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
+        df_ch['V_ch_savgol'] = savgol_filter(V_ch, window_length=wl_ch, polyorder=polyorder)
+        df_dis['Q_dis_savgol'] = savgol_filter(Q_dis, window_length=wl_dis, polyorder=polyorder)
+        df_dis['V_dis_savgol'] = savgol_filter(V_dis, window_length=wl_dis, polyorder=polyorder)
+
         # Calcula dVdQ
         df_ch['dvdq_ch_calc'] = np.gradient(df_ch['V_ch_savgol'].values,Q_ch)
         dvdq_ch = df_ch['dvdq_ch_calc'].values
@@ -692,9 +507,11 @@ def plot_dvdq(indices_ciclos,dict_ciclos_sep):
     #plt.ylim(-0.0025,0.0025) # para dV/dQ
     plt.xlabel('Voltage (V)')
     plt.ylabel('dQ/dV (mAh/V)')
-    plt.title(f'dQ/dV wl_ch={windowlength_ch}, wl_dis={windowlength_dis}, po={polyorder}')
+    plt.title(f'dQ/dV wl_ch={wl_ch}, wl_dis={wl_dis}, po={polyorder}')
     plt.grid(True)
-    plt.legend()
+    if legend:
+        plt.legend()
+    plt.show()
     plt.show()
 
     return dict_ciclos_sep
