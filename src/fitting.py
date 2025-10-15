@@ -43,6 +43,14 @@ def multi_emg(x, *params):
     return y
 
 
+def multi_emg_lamfijo(V, *params, lambdas_fijo):
+    y = 0
+    n_peaks = len(params)//3
+    for i in range(n_peaks):
+        a, mu, sigma = params[3*i:3*i+3]
+        y += emg(V, a, mu, sigma, lambdas_fijo[i])
+    return y
+
 # ============== Funciones de uso ==============
 
 # --- plots ---
