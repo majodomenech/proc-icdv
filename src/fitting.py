@@ -4,7 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from scipy.optimize import curve_fit
-
+import pandas as pd
+from pathlib import Path
 
 '''
 Funciones para realizar ajustes.
@@ -52,6 +53,44 @@ def multi_emg_lamfijo(V, *params, lambdas_fijo):
     return y
 
 # ============== Funciones de uso ==============
+
+# --- guardado de datos ---
+def guardar_parametros_emg(resultados, ciclos, nombre, output_dir="../output"):
+    """
+    Crea un DataFrame con los parámetros ajustados de los ciclos y lo guarda como CSV.
+    
+    Parámetros
+    ----------
+    resultados : list
+        Lista (o array) con los parámetros ajustados por ciclo, 
+        donde cada elemento corresponde a un ciclo.
+    ciclos : list
+        Lista con los números de ciclo correspondientes a los resultados.
+    nombre : str
+        Nombre base del archivo CSV de salida.
+    output_dir : str o Path
+        Carpeta donde guardar el archivo. Por defecto "../output".
+    """
+    n_peaks = len(resultados[0]) // 4
+
+    # Crear nombres de columnas (a, mu, sigma, lambda) por pico
+    cols = [f"{param}{i+1}" for i in range(n_peaks) for param in ["a", "mu", "sigma", "lambda"]]
+
+    # Crear DataFrame con los resultados
+    df_params = pd.DataFrame(resultados, index=ciclos, columns=cols)
+
+    # Definir ruta de salida
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"parametros_ajustes_{nombre}.csv"
+
+    # Guardar CSV
+    df_params.to_csv(output_path)
+
+    print(f"✅ Ajustes terminados. Resultados guardados en '{output_path}'")
+
+    return df_params
+
 
 # --- plots ---
 def plot_emg_guess(df_ciclo, param_list, x_range=(3.3,4.45), n_points=500):
@@ -123,6 +162,7 @@ def plot_emg_fit(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_path=No
 
     if save_path:
         plt.savefig(save_path, dpi=300)
+        plt.show()
         plt.close()
     else:
         plt.show()
@@ -170,6 +210,9 @@ def fit_emg_ciclo_lamfijo(df_ch, p0, lambdas_fijo, bounds, maxfev=20000):
 
 def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_emg, ciclos_grafico=None):
     """
+    #TODO: arreglar fitloop_emg_lamfijo para que si falla agregue NaNs en vez de romper todo
+    #y poder guardar los resultados parciales. Fijarse en como se hace en estudio7.
+
     Ajuste encadenado de varios ciclos. Primer ciclo ajusta lambda,
     ciclos siguientes mantienen lambda fijo.
     Devuelve resultados y covs.
