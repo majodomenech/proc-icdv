@@ -67,8 +67,8 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
             if x == 'CellV' and y == 'dCellV/dCapacity':
                 # -- para 1/dVdQ = dQdV vs CellV
                 plt.plot(x_dis, 1/y_dis, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
-            #else:
-            #    plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            else:
+                plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
 
             # chequeos
             #x_max_ch=np.max(x_ch)
