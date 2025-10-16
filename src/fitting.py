@@ -3,9 +3,11 @@ from scipy.special import erfc
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import matplotlib as mpl
 from scipy.optimize import curve_fit
 import pandas as pd
 from pathlib import Path
+
 
 '''
 Funciones para realizar ajustes.
@@ -93,7 +95,7 @@ def guardar_parametros_emg(resultados, ciclos, nombre, output_dir="../output"):
 
 
 # --- plots ---
-def plot_emg_guess(df_ciclo, param_list, x_range=(3.3,4.45), n_points=500):
+def plot_emg_guess(df_ciclo, param_list, x_range=(3.3,4.45), n_points=500, legend=True):
     
     """
     Grafica los datos de dQ/dV de un ciclo junto con EMG iniciales para testear el guess,
@@ -127,7 +129,8 @@ def plot_emg_guess(df_ciclo, param_list, x_range=(3.3,4.45), n_points=500):
     plt.xlabel("Voltaje (V)")
     plt.ylabel("dQ/dV (mAh/V)")
     plt.title("EMG iniciales vs datos del ciclo")
-    plt.legend()
+    if legend:
+        plt.legend()
     plt.grid(True)
     plt.show()
 
@@ -163,6 +166,62 @@ def plot_emg_fit(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_path=No
     if save_path:
         plt.savefig(save_path, dpi=300)
         plt.show()
+        plt.close()
+    else:
+        plt.show()
+
+
+def plot_emg_fit_poster(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_path=None):
+    """
+    Gráfico para póster científico: muestra los datos experimentales,
+    el ajuste total y los picos individuales (EMG).
+    """
+    # --- Estilo general ---
+    mpl.rcParams.update({
+        "font.size": 14,
+        "axes.labelsize": 16,
+        "axes.titlesize": 16,
+        "legend.fontsize": 13,
+        "xtick.labelsize": 13,
+        "ytick.labelsize": 13,
+        "axes.linewidth": 1.2,
+    })
+
+    V = df_ch['V_ch_savgol'].values
+    dqdv = df_ch['dqdv_ch_calc'].values
+    colors = cm.tab10.colors
+
+    plt.figure(figsize=(7, 5), dpi=300)
+    
+    # --- Datos experimentales ---
+    plt.plot(V, dqdv, color='black', linewidth=2.2, label="Datos")
+
+    # --- Ajuste total ---
+    y_fit = multi_emg(V, *popt)
+    plt.plot(V, y_fit, color='crimson', linewidth=2.5, label="Ajuste total")
+
+    # --- Picos individuales ---
+    n_peaks = len(popt)//4
+    for i in range(n_peaks):
+        a, mu, sigma, lam = popt[4*i:4*i+4]
+        plt.plot(
+            V, emg(V, a, mu, sigma, lam),
+            '--', color=colors[i % len(colors)],
+            linewidth=1.6, alpha=0.9, label=f"Pico {i+1}"
+        )
+
+    plt.xlabel("Voltaje (V)")
+    plt.ylabel("dQ/dV (mAh/Vg)")
+    if nombre_ciclo:
+        plt.title(f"Ciclo {nombre_ciclo}", pad=10)
+    plt.ylim(ylim)
+
+    plt.grid(True, alpha=0.3, linewidth=0.8)
+    plt.legend(frameon=False, loc='best')
+    plt.tight_layout()
+
+    if save_path:
+        plt.savefig(save_path, dpi=300, bbox_inches='tight')
         plt.close()
     else:
         plt.show()
