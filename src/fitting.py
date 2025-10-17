@@ -228,6 +228,59 @@ def plot_emg_fit_poster(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_
 
 
 # --- fiteos ---
+def recalcular_bounds(popt, n_peaks, cfg_bounds):
+    """
+    Recalcula los bounds (límites) de los parámetros de ajuste.
+
+    Parámetros:
+    ------------
+    popt : list or np.array
+        Últimos parámetros ajustados (sin lambdas).
+    n_peaks : int
+        Número de picos.
+    cfg_bounds : dict
+        Configuración de bounds, con posibles claves:
+            - 'perc_a', 'perc_mu', 'perc_sigma' : floats (porcentajes)
+            - 'restricciones_mu' : dict {i: (mu_min, mu_max)}
+            - 'min_amp' / 'max_amp' : valores absolutos opcionales
+            - etc.
+
+    Retorna:
+    ---------
+    (lb, ub) : tuple of np.ndarray
+        Límite inferior y superior.
+    """
+    perc_a = cfg_bounds.get('perc_a', 0.1)
+    perc_mu = cfg_bounds.get('perc_mu', 0.1)
+    perc_sigma = cfg_bounds.get('perc_sigma', 0.1)
+    restricciones_mu = cfg_bounds.get('restricciones_mu', None)
+
+    lb, ub = [], []
+
+    for i in range(n_peaks):
+        a0, mu0, sigma0 = popt[3*i:3*i+3]
+
+        # Límites relativos
+        lb_a, ub_a = (1 - perc_a) * a0, (1 + perc_a) * a0
+        lb_mu, ub_mu = (1 - perc_mu) * mu0, (1 + perc_mu) * mu0
+        lb_s, ub_s = (1 - perc_sigma) * sigma0, (1 + perc_sigma) * sigma0
+
+        # Restricciones opcionales por pico
+        if restricciones_mu and i in restricciones_mu:
+            mu_min, mu_max = restricciones_mu[i]
+            lb_mu = max(lb_mu, mu_min)
+            ub_mu = min(ub_mu, mu_max)
+
+        lb += [lb_a, lb_mu, lb_s]
+        ub += [ub_a, ub_mu, ub_s]
+
+    lb = np.array(lb, dtype=float)
+    ub = np.array(ub, dtype=float)
+    lb[~np.isfinite(lb)] = 0
+    ub[~np.isfinite(ub)] = 1e6
+    return (lb, ub)
+
+
 def fit_emg_ciclo(df_ch, p0, bounds, maxfev=20000):
     """
     Ajusta un solo ciclo usando multi_emg con lambda variable.
@@ -267,11 +320,8 @@ def fit_emg_ciclo_lamfijo(df_ch, p0, lambdas_fijo, bounds, maxfev=20000):
 
 
 
-def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_emg, ciclos_grafico=None):
+def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None):
     """
-    #TODO: arreglar fitloop_emg_lamfijo para que si falla agregue NaNs en vez de romper todo
-    #y poder guardar los resultados parciales. Fijarse en como se hace en estudio7.
-
     Ajuste encadenado de varios ciclos. Primer ciclo ajusta lambda,
     ciclos siguientes mantienen lambda fijo.
     Devuelve resultados y covs.
@@ -280,18 +330,36 @@ def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_emg, ciclos_grafico=No
     covs = []
     colores = cm.tab10.colors
     p0_actual = p_ini_emg
+    bounds_actual = bounds_ini_emg
+    n_peaks = len(p_ini_emg)//4
 
-    # Ajuste primer ciclo (lambda variable)
+    # --- Ajuste primer ciclo (lambda variable) ---
     df_ch = diccio[ciclos[0]]['Ch']
     print(f'Ajustando ciclo {ciclos[0]}...')
-    popt, pcov = fit_emg_ciclo(df_ch, p0_actual, bounds_emg)
+    popt, pcov = fit_emg_ciclo(df_ch, p0_actual, bounds_actual)
     resultados.append(popt)
     covs.append(pcov)
 
     # Extraer lambdas para ciclos siguientes
     lambdas_fijo = [popt[i] for i in range(len(popt)) if (i+1) % 4 == 0]
+    popt_sin_lambda = [popt[i] for i in range(len(popt)) if (i+1) % 4 != 0]
+    
     # Actualizar p0 sin lambdas
     p0_actual = [popt[i] for i in range(len(popt)) if (i+1) % 4 != 0]
+
+    # Recalcular bounds para el próximo ciclo
+    lb = []
+    ub = []
+    for i in range(n_peaks):
+        a0, mu0, sigma0 = popt_sin_lambda[3*i:3*i+3]
+        lb += [0.99*a0, 0.99*mu0, 0.99*sigma0]
+        ub += [1.01*a0, 1.01*mu0, 1.01*sigma0]
+    lb = np.array(lb, dtype=float)
+    ub = np.array(ub, dtype=float)
+    # Reemplazar valores no finitos por límites seguros
+    lb[~np.isfinite(lb)] = 0
+    ub[~np.isfinite(ub)] = 1e6
+    bounds_actual = (lb, ub)
 
     # Graficar primer ciclo si corresponde
     if ciclos_grafico and ciclos[0] in ciclos_grafico:
@@ -300,15 +368,49 @@ def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_emg, ciclos_grafico=No
 
     # Ajuste ciclos restantes
     for ciclo in ciclos[1:]:
-        df_ch = diccio[ciclo]['Ch']
-        print(f'Ajustando ciclo {ciclo}...')
-        popt_completo, pcov_completo = fit_emg_ciclo_lamfijo(df_ch, p0_actual, lambdas_fijo, bounds_emg)
-        resultados.append(popt_completo)
-        covs.append(pcov_completo)
-        p0_actual = [popt_completo[i] for i in range(len(popt_completo)) if (i+1) % 4 != 0]
+        try:
+            df_ch = diccio[ciclo]['Ch']
+            print(f'Ajustando ciclo {ciclo}...')
+            popt_completo, pcov_completo = fit_emg_ciclo_lamfijo(df_ch, p0_actual, lambdas_fijo, bounds_actual)
+            resultados.append(popt_completo)
+            covs.append(pcov_completo)
+            p0_actual = [popt_completo[i] for i in range(len(popt_completo)) if (i+1) % 4 != 0] # vuelvo a actualizar p0 sin lambdas
 
-        if ciclos_grafico and ciclo in ciclos_grafico:
-            plot_emg_fit(df_ch, popt_completo, nombre_ciclo=ciclo,
-                         save_path=f'./output/ajuste_picos_ciclo{ciclo}.png')
+            if ciclos_grafico and ciclo in ciclos_grafico:
+                plot_emg_fit(df_ch, popt_completo, nombre_ciclo=ciclo,
+                            save_path=f'../output/ajuste_C{ciclo}.png')
+
+            # Recalcular bounds para el próximo ciclo
+            lb = []
+            ub = []
+
+            for i in range(n_peaks):
+
+                a0, mu0, sigma0 = popt[3*i:3*i+3]
+
+                if i == 2:  # pico 3
+                    mu_min = 3.5
+                    mu_max = 4.45
+                    lb_mu = max(0.9*mu0, mu_min)
+                    ub_mu = min(1.1*mu0, mu_max)
+
+                if i == 3:  # pico 4
+                    mu_min = 3.5
+                    mu_max = 4.45
+                    lb_mu = max(0.9*mu0, mu_min)
+                    ub_mu = min(1.1*mu0, mu_max)
+                else:
+                    lb_mu = 0.9*mu0
+                    ub_mu = 1.1*mu0
+
+                lb += [0.9*a0, lb_mu, 0.9*sigma0]
+                ub += [1.1*a0, ub_mu, 1.1*sigma0]
+            bounds_actual = (lb, ub)
+
+        except Exception as e:
+            print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}")
+            # Agregar NaNs en caso de fallo
+            resultados.append([np.nan]*(4*n_peaks))
+            covs.append(np.full((4*n_peaks, 4*n_peaks), np.nan))
 
     return resultados, covs
