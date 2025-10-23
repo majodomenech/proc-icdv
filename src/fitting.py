@@ -254,6 +254,7 @@ def recalcular_bounds(popt, n_peaks, cfg_bounds):
     perc_mu = cfg_bounds.get('perc_mu', 0.1)
     perc_sigma = cfg_bounds.get('perc_sigma', 0.1)
     restricciones_mu = cfg_bounds.get('restricciones_mu', None)
+    restricciones_sigma = cfg_bounds.get('restricciones_sigma', None)
 
     lb, ub = [], []
 
@@ -271,8 +272,10 @@ def recalcular_bounds(popt, n_peaks, cfg_bounds):
             lb_mu = max(lb_mu, mu_min)
             ub_mu = min(ub_mu, mu_max)
 
-        lb += [lb_a, lb_mu, lb_s]
-        ub += [ub_a, ub_mu, ub_s]
+        if restricciones_sigma and i in restricciones_sigma:
+            s_min, s_max = restricciones_sigma[i]
+            lb_s = max(lb_s, s_min)
+            ub_s = min(ub_s, s_max)
 
     lb = np.array(lb, dtype=float)
     ub = np.array(ub, dtype=float)
@@ -320,12 +323,15 @@ def fit_emg_ciclo_lamfijo(df_ch, p0, lambdas_fijo, bounds, maxfev=20000):
 
 
 
-def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None):
+def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None, cfg_bounds=None):
     """
     Ajuste encadenado de varios ciclos. Primer ciclo ajusta lambda,
     ciclos siguientes mantienen lambda fijo.
     Devuelve resultados y covs.
     """
+    if cfg_bounds is None:
+        cfg_bounds = {}
+
     resultados = []
     covs = []
     colores = cm.tab10.colors
@@ -348,23 +354,12 @@ def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafic
     p0_actual = [popt[i] for i in range(len(popt)) if (i+1) % 4 != 0]
 
     # Recalcular bounds para el próximo ciclo
-    lb = []
-    ub = []
-    for i in range(n_peaks):
-        a0, mu0, sigma0 = popt_sin_lambda[3*i:3*i+3]
-        lb += [0.99*a0, 0.99*mu0, 0.99*sigma0]
-        ub += [1.01*a0, 1.01*mu0, 1.01*sigma0]
-    lb = np.array(lb, dtype=float)
-    ub = np.array(ub, dtype=float)
-    # Reemplazar valores no finitos por límites seguros
-    lb[~np.isfinite(lb)] = 0
-    ub[~np.isfinite(ub)] = 1e6
-    bounds_actual = (lb, ub)
+    bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
 
     # Graficar primer ciclo si corresponde
     if ciclos_grafico and ciclos[0] in ciclos_grafico:
         plot_emg_fit(df_ch, popt, nombre_ciclo=ciclos[0],
-                     save_path=f'./output/ajuste_picos_ciclo{ciclos[0]}.png')
+                     save_path=f'../output/ajuste_C{ciclos[0]}.png')
 
     # Ajuste ciclos restantes
     for ciclo in ciclos[1:]:
@@ -381,31 +376,7 @@ def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafic
                             save_path=f'../output/ajuste_C{ciclo}.png')
 
             # Recalcular bounds para el próximo ciclo
-            lb = []
-            ub = []
-
-            for i in range(n_peaks):
-
-                a0, mu0, sigma0 = popt[3*i:3*i+3]
-
-                if i == 2:  # pico 3
-                    mu_min = 3.5
-                    mu_max = 4.45
-                    lb_mu = max(0.9*mu0, mu_min)
-                    ub_mu = min(1.1*mu0, mu_max)
-
-                if i == 3:  # pico 4
-                    mu_min = 3.5
-                    mu_max = 4.45
-                    lb_mu = max(0.9*mu0, mu_min)
-                    ub_mu = min(1.1*mu0, mu_max)
-                else:
-                    lb_mu = 0.9*mu0
-                    ub_mu = 1.1*mu0
-
-                lb += [0.9*a0, lb_mu, 0.9*sigma0]
-                ub += [1.1*a0, ub_mu, 1.1*sigma0]
-            bounds_actual = (lb, ub)
+            bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
 
         except Exception as e:
             print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}")
