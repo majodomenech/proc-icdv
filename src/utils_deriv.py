@@ -14,6 +14,8 @@ Funciones para estudiar cosas particulares de las curvas como la resolución, et
 def resolucion_V(indices_ciclos,dict_ciclos_sep):
     '''
     estudio resolucion datos de voltaje y tamaño ventana de suavizado
+    
+    input: indices_ciclos, dict_ciclos_sep
     output: histograma de los puntos por ventana
 
     '''
@@ -212,4 +214,4 @@ def detectar_cambios_resolucion(indices_ciclos, dict_ciclos_sep, umbral=1.5):
     plt.tight_layout()
     plt.show()
 
-    return indices_cambio.tolist()
+    return indices_cambio_ch.tolist()

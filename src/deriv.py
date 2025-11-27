@@ -13,78 +13,54 @@ from scipy.signal import savgol_filter
 Funciones para trabajar con las derivadas IC, DV.
 
 '''
+# ----------- tools -------------
 
+def truncar_señal(indices_ciclos, dict_ciclos_sep, n_dis=10, n_ch=30):
+    '''
+    Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
+    Parámetros
+    ----------
+    indices_ciclos : list[int]
+        Ciclos a procesar.
+    dict_ciclos_sep : dict
+        Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
+    n_dis : int, opcional
+        Número de puntos a truncar al FINAL de la descarga. Por defecto 10.
+    n_ch : int, opcional
+        Número de puntos a truncar al INICIO de la carga. Por defecto 3 * n_dis.
 
-# ----------- ESTUDIO DERIVADA VARIANDO PARAMETROS FILTRO -------------
-def plot_dqdv_muchos_wl(indices_ciclos,dict):
+    Retorna
+    -------
+    dict
+        Diccionario con DataFrames truncados por ciclo.
+    '''
+    dict_truncado = {}
 
-    windowlengths_dis = np.array([31, 51, 71, 91, 101, 111, 131, 121, 151])  # valores a probar
-    windowlengths_dis = np.array([41, 51, 61, 71, 81, 91])  # valores a probar
-    windowlengths_dis = np.array([51,53,57,59,61,63])
-    windowlengths_ch = windowlengths_dis * 3
-    polyorder = 3
+    for i in indices_ciclos:
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
 
-    ncols = 3
-    nrows = int(np.ceil(len(windowlengths_dis) / ncols))
+        Q_ch = df_ch['Q'].values
+        V_ch = df_ch['CellV'].values
+        Q_dis = df_dis['Q'].values
+        V_dis = df_dis['CellV'].values
 
-    fig, axs = plt.subplots(nrows, ncols, figsize=(12, 3 * nrows), sharex=True, sharey=True)
-    axs = axs.flatten()
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+        # Truncar el eje Q y V
+        Q_ch_trunc = Q_ch[n_ch:]
+        V_ch_trunc = V_ch[n_ch:]
+        Q_dis_trunc = Q_dis[n_dis:]  # El array de descarga tiene los voltajes ordenados de mayor a menor.
+        V_dis_trunc = V_dis[n_dis:]
 
-    count = 0
-    for ax, wl_dis in zip(axs, windowlengths_dis):
-        wl_ch = windowlengths_ch[count]
-        count+=1
-        for i, color in zip(indices_ciclos, colors):
-            df_ch = dict[i]['Ch']
-            df_dis = dict[i]['Dis']
+        # Crear nuevos DataFrames
+        df_ch_trunc = pd.DataFrame({'Q': Q_ch_trunc, 'CellV': V_ch_trunc})
+        df_dis_trunc = pd.DataFrame({'Q': Q_dis_trunc, 'CellV': V_dis_trunc})
 
-            Q_ch = df_ch['Q'].values
-            V_ch = df_ch['CellV'].values
-            Q_dis = df_dis['Q'].values
-            V_dis = df_dis['CellV'].values
+        dict_truncado[i] = {
+            'Ch': df_ch_trunc,
+            'Dis': df_dis_trunc
+        }
 
-            # Verifica que wl sea menor que el tamaño de Q_dis y sea impar
-            if wl_dis >= len(Q_dis) or wl_ch >= len(Q_ch):
-                continue
-            if wl_dis % 2 == 0 or wl_ch % 2 == 0:
-                wl += 1
-
-            Q_ch_savgol = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
-            V_ch_savgol = savgol_filter(V_ch, window_length=wl_ch, polyorder=polyorder)
-            dqdv_ch = np.gradient(Q_ch_savgol, V_ch_savgol)    
-            Q_dis_savgol = savgol_filter(Q_dis, window_length=wl_dis, polyorder=polyorder)
-            V_dis_savgol = savgol_filter(V_dis, window_length=wl_dis, polyorder=polyorder)
-            dqdv_dis = np.gradient(Q_dis_savgol, V_dis_savgol)
-
-            # Plotear modo curva
-            ax.plot(V_ch, dqdv_ch, color=color, markersize=0.1)
-            ax.plot(V_dis, dqdv_dis, color=color, markersize=0.1)
-            
-            # Plotear modo scatter
-            #ax.scatter(V_ch,Q_ch, marker='o', linestyle='-',color=color, label=f'Ciclo {i}',s=1)
-            #ax.scatter(V_ch, dqdv_ch, color=color, s=1) 
-            #ax.scatter(V_dis,Q_dis-np.min(Q_dis), marker='o', linestyle='-',color=color)#, label=f'Ciclo {i}',s=1)
-            #ax.scatter(V_dis, dqdv_dis, color=color, s=1)
-            
-            #for idx in range(wl, len(V_ch), wl):
-            #    ax.axvline(x=V_ch[idx], color=color, linestyle='--', linewidth=0.8)
-
-        ax.set_title(f'wl_ch={wl_ch}, wl_dis={wl_dis}')
-        ax.set_xlabel('Voltage (V)')
-        #ax.set_ylim(-6000,1000)
-        #ax.set_ylim(-1000,11000)
-        ax.set_ylabel('dQ/dV')
-        ax.grid(True)
-
-        
-    # Eliminar subplots vacíos si hay
-    for ax in axs[len(windowlengths_dis):]:
-        fig.delaxes(ax)
-
-    
-    plt.tight_layout()
-    plt.show()
+    return dict_truncado
 
 
 def extender_señal(indices_ciclos, dict_ciclos_sep):
@@ -149,6 +125,91 @@ def extender_señal(indices_ciclos, dict_ciclos_sep):
         }
 
     return dict_extendido
+
+
+# ----------- ESTUDIO DERIVADA VARIANDO PARAMETROS FILTRO -------------
+def plot_dqdv_muchos_wl(indices_ciclos,dict, wl_values=None, truncar_values=None):
+    '''
+    Función para plotear dQ/dV variando los parámetros del filtro Savitzky-Golay. También permite truncar.
+    Parámetros
+    indices_ciclos: lista de índices de ciclos a graficar
+    dict: diccionario con los datos de los ciclos
+    wl_values: lista de valores de window length a probar (para descarga). La carga será 3 veces este valor.
+    truncar_values: lista de valores para truncar los datos (para descarga). La carga será 3 veces este valor.
+    '''
+
+    if wl_values is None:
+        windowlengths_dis = np.array([51,53,57,59,61,63])
+    else:
+        windowlengths_dis = np.array(wl_values)
+    windowlengths_ch = windowlengths_dis * 3
+    polyorder = 3
+
+    if truncar_values is not None:
+        n_dis, n_ch = truncar_values
+        dict = truncar_señal(indices_ciclos, dict, n_dis=n_dis, n_ch=n_ch)
+
+    ncols = 3
+    nrows = int(np.ceil(len(windowlengths_dis) / ncols))
+
+    fig, axs = plt.subplots(nrows, ncols, figsize=(12, 3 * nrows), sharex=True, sharey=True)
+    axs = axs.flatten()
+    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+
+    count = 0
+    for ax, wl_dis in zip(axs, windowlengths_dis):
+        wl_ch = windowlengths_ch[count]
+        count+=1
+        for i, color in zip(indices_ciclos, colors):
+            df_ch = dict[i]['Ch']
+            df_dis = dict[i]['Dis']
+
+            Q_ch = df_ch['Q'].values
+            V_ch = df_ch['CellV'].values
+            Q_dis = df_dis['Q'].values
+            V_dis = df_dis['CellV'].values
+
+            # Verifica que wl sea menor que el tamaño de Q_dis y sea impar
+            if wl_dis >= len(Q_dis) or wl_ch >= len(Q_ch):
+                continue
+            if wl_dis % 2 == 0 or wl_ch % 2 == 0:
+                wl += 1
+
+            Q_ch_savgol = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
+            V_ch_savgol = savgol_filter(V_ch, window_length=wl_ch, polyorder=polyorder)
+            dqdv_ch = np.gradient(Q_ch_savgol, V_ch_savgol)    
+            Q_dis_savgol = savgol_filter(Q_dis, window_length=wl_dis, polyorder=polyorder)
+            V_dis_savgol = savgol_filter(V_dis, window_length=wl_dis, polyorder=polyorder)
+            dqdv_dis = np.gradient(Q_dis_savgol, V_dis_savgol)
+
+            # Plotear modo curva
+            ax.plot(V_ch, dqdv_ch, color=color, markersize=0.1)
+            ax.plot(V_dis, dqdv_dis, color=color, markersize=0.1)
+            
+            # Plotear modo scatter
+            #ax.scatter(V_ch,Q_ch, marker='o', linestyle='-',color=color, label=f'Ciclo {i}',s=1)
+            #ax.scatter(V_ch, dqdv_ch, color=color, s=1) 
+            #ax.scatter(V_dis,Q_dis-np.min(Q_dis), marker='o', linestyle='-',color=color)#, label=f'Ciclo {i}',s=1)
+            #ax.scatter(V_dis, dqdv_dis, color=color, s=1)
+            
+            #for idx in range(wl, len(V_ch), wl):
+            #    ax.axvline(x=V_ch[idx], color=color, linestyle='--', linewidth=0.8)
+
+        ax.set_title(f'wl_ch={wl_ch}, wl_dis={wl_dis}')
+        ax.set_xlabel('Voltage (V)')
+        #ax.set_ylim(-6000,1000)
+        #ax.set_ylim(-1000,11000)
+        ax.set_ylabel('dQ/dV')
+        ax.grid(True)
+
+        
+    # Eliminar subplots vacíos si hay
+    for ax in axs[len(windowlengths_dis):]:
+        fig.delaxes(ax)
+
+    
+    plt.tight_layout()
+    plt.show()
 
 
 def extender_señal_y_plot(indices_ciclos, dict_ciclos_sep):
@@ -252,54 +313,6 @@ def extender_señal_y_plot(indices_ciclos, dict_ciclos_sep):
     return dict_extendido
 
 
-def truncar_señal(indices_ciclos, dict_ciclos_sep, n_dis=10, n_ch=30):
-    '''
-    Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
-    Parámetros
-    ----------
-    indices_ciclos : list[int]
-        Ciclos a procesar.
-    dict_ciclos_sep : dict
-        Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
-    n_dis : int, opcional
-        Número de puntos a truncar al FINAL de la descarga. Por defecto 10.
-    n_ch : int, opcional
-        Número de puntos a truncar al INICIO de la carga. Por defecto 3 * n_dis.
-
-    Retorna
-    -------
-    dict
-        Diccionario con DataFrames truncados por ciclo.
-    '''
-    dict_truncado = {}
-
-    for i in indices_ciclos:
-        df_ch = dict_ciclos_sep[i]['Ch']
-        df_dis = dict_ciclos_sep[i]['Dis']
-
-        Q_ch = df_ch['Q'].values
-        V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
-        V_dis = df_dis['CellV'].values
-
-        # Truncar el eje Q y V
-        Q_ch_trunc = Q_ch[n_ch:]
-        V_ch_trunc = V_ch[n_ch:]
-        Q_dis_trunc = Q_dis[n_dis:]  # El array de descarga tiene los voltajes ordenados de mayor a menor.
-        V_dis_trunc = V_dis[n_dis:]
-
-        # Crear nuevos DataFrames
-        df_ch_trunc = pd.DataFrame({'Q': Q_ch_trunc, 'CellV': V_ch_trunc})
-        df_dis_trunc = pd.DataFrame({'Q': Q_dis_trunc, 'CellV': V_dis_trunc})
-
-        dict_truncado[i] = {
-            'Ch': df_ch_trunc,
-            'Dis': df_dis_trunc
-        }
-
-    return dict_truncado
-
-
 def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
     '''
     Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
@@ -384,7 +397,7 @@ def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
 
 # ----------- CALCULO DERIVADA CON FILTRO SAVITZKY-GOLAY -------------
 
-def plot_dqdV(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153, polyorder=3):
+def plot_dqdV(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3, colorbar=False):
     '''
     Función simple de plot dqdv con filtro
     Actualiza el dict de entrada con los datos de Q y V suavizados y los valores de dVdQ calculados.
@@ -396,8 +409,7 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153
         Ciclos a procesar.
     dict_ciclos_sep : dict
         Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
-    legend : bool, opcional
-        Si es True, muestra la leyenda en el gráfico. Por defecto es False.
+
     wl_dis : int, opcional
         Longitud de la ventana del filtro Savitzky-Golay para descarga. Debe ser un número impar. Por defecto es 51.
     wl_ch : int, opcional
@@ -436,25 +448,28 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153
         plt.plot(V_dis, dqdv_dis, marker='o', linestyle='-',color=color,markersize=0.1)#, label=f'Ciclo {i}')
 
         
-    # Crear colorbar asociada a los ciclos
-    #norm = mcolors.Normalize(vmin=min(ciclos), vmax=max(ciclos))
-    #sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
-    #sm.set_array([])  # requerido
-    #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=ciclos[::2])
-    #cbar.set_label('Cycle number')
+    if len(indices_ciclos) > 10:
+        plt.legend().remove()
+        
+        if plt.colorbar == True:
+            # Crear colorbar asociada a los ciclos
+            norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+            sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+            sm.set_array([])  # requerido
+            cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+            cbar.set_label('Cycle number')
+    else:
+        plt.legend()
 
     plt.xlabel('Voltage (V)')
     plt.ylabel('dQ/dV (mAh/V)')
     plt.title(f'dQ/dV wl_ch={wl_ch}, wl_dis={wl_dis}, po={polyorder}')
     plt.grid(True)
-    if legend:
-        plt.legend()
     plt.show()
 
     return dict_ciclos_sep
 
-
-def plot_dVdq(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153, polyorder=3):
+def plot_dVdq(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3, colorbar=False):
     '''
     Función simple de plot dqdv calculada con filtro Savitzky-Golay.
     Actualiza el dict de entrada con los datos de Q y V suavizados y los valores de dVdQ calculados.
@@ -497,21 +512,25 @@ def plot_dVdq(indices_ciclos,dict_ciclos_sep, legend=False, wl_dis=51, wl_ch=153
         plt.scatter(Q_dis-np.min(Q_dis), dvdq_dis, marker='o', linestyle='-',color=color, s=1)#, label=f'Ciclo {i}')
 
             
-    # Crear colorbar asociada a los ciclos
-    #norm = mcolors.Normalize(vmin=min(ciclos), vmax=max(ciclos))
-    #sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
-    #sm.set_array([])  # requerido
-    #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=ciclos[::2])
-    #cbar.set_label('Cycle number')
+    if len(indices_ciclos) > 10:
+        plt.legend().remove()
+        
+        if plt.colorbar == True:
+            # Crear colorbar asociada a los ciclos
+            norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+            sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+            sm.set_array([])  # requerido
+            cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+            cbar.set_label('Cycle number')
+    else:
+        plt.legend()
+
 
     #plt.ylim(-0.0025,0.0025) # para dV/dQ
     plt.xlabel('Voltage (V)')
     plt.ylabel('dQ/dV (mAh/V)')
     plt.title(f'dQ/dV wl_ch={wl_ch}, wl_dis={wl_dis}, po={polyorder}')
     plt.grid(True)
-    if legend:
-        plt.legend()
-    plt.show()
     plt.show()
 
     return dict_ciclos_sep

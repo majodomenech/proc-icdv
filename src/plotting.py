@@ -17,6 +17,98 @@ Funciones para hacer plots simples.
 
 # %% -------  Plots simples --------------------------------------------------------------------
 
+def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter=False):
+    '''
+    x,y = 'CellV', 'dCapacity/dCellV'
+
+    dict es:  
+        dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
+        Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
+    '''
+
+    plt.figure(figsize=(8,5))
+    #plt.rcParams.update({'font.size': 12})
+    #plt.rcParams['font.family'] = 'Times New Roman'
+    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+
+    x = 'CellV'
+    y = 'dCapacity/dCellV'
+
+    for i, color in zip(indices_ciclos, colors):
+        df_ch = dict[i]['Ch']
+        df_dis = dict[i]['Dis']
+
+        x_ch = df_ch[x].values
+        y_ch = df_ch[y].values
+        x_dis = df_dis[x].values
+        y_dis = df_dis[y].values
+
+        if scatter:
+            plt.scatter(x_ch, y_ch, marker='o', linestyle='-',color=color,s=1)#, markersize=0.1)
+            plt.scatter(x_dis, y_dis, marker='o', linestyle='-',color=color,s=0.1)#,markersize=0.1)
+        else:
+            # ------- Charge -------
+            plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            
+            # ------- Discharge -------
+            plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1)
+
+            # chequeos
+            #x_max_ch=np.max(x_ch)
+            #x_min_dis=np.min(x_dis)
+            #plt.axvline(x_max_ch, color='gray', linestyle='--', linewidth=1, label=f'Q max ({x_max_ch:.2f} mAh)')
+            #plt.axvline(x_min_dis, color='gray', linestyle='--', linewidth=1, label=f'Q max ({x_min_dis:.2f} mAh)')
+
+    if len(indices_ciclos) > 10:
+        plt.legend().remove()
+        
+        # Crear colorbar asociada a los ciclos
+        norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+        sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+        sm.set_array([])  # requerido
+        cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+        cbar.set_label('Cycle number')
+    else:
+        plt.legend()
+    
+
+    x_string = 'dQdV'
+    
+    labels_con_unidades = {
+        'Time': 'Time (hour)',
+        'Q': 'Q (mAh)',
+        'CellV': 'CellV (V)',
+        'dCapacity/dCellV': 'dQdV (mAh/V)',
+        'dCellV/dCapacity': 'dVdQ (V/mAh)',
+        'Current': 'Current (A)',
+        }
+
+    x_label = labels_con_unidades.get(x, x)
+    y_label = labels_con_unidades.get(y, y)
+    
+    #plt.ylim(-0.0025,0.0025) # para dV/dQ
+    #plt.ylim(0,0.002) # para dV/dQ charge
+    #plt.ylim(-0.002,0) # para dV/dQ discharge
+    #plt.xlim(0,3000)
+    #plt.ylim(2.9,4.5)
+    #plt.xlim(-60,2650)
+    
+    plt.xlabel(f'{x_label}', fontsize=16)
+    plt.ylabel(f'{y_label}', fontsize=16)
+    # ticks
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+
+    plt.title(f'{y} vs {x}', fontsize=12)
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(f'../output/{nombre_grafico}_dQdVvsCellV.png', dpi=300)
+    plt.show()
+    return
+
+
+
 def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=False):
     '''
     x,y = 'Time', 'CellV', 'dCapacity/dCellV', 'dCellV/dCapacity' 'Q'
@@ -118,7 +210,7 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
     
     #plt.legend()
     plt.tight_layout()
-    plt.savefig(f'./output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
+    plt.savefig(f'../output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
     plt.show()
     return
 
@@ -176,7 +268,7 @@ def plot_n_cycles_superpuesto(indices_ciclos, dict, x, y, nombre_grafico='plot',
     ax.legend()
     #ax2.legend()
     #plt.tight_layout()
-    fig.savefig(f'./output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
+    fig.savefig(f'../output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
     #plt.show()
     return
 

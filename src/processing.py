@@ -40,6 +40,23 @@ def cargar_json(path_json):
     return dict_ciclos_sep
 
 
+def crear_json(dict_ciclos_sep, output_path):
+    """
+    Crea un archivo JSON a partir de un diccionario dict_ciclos_sep.
+    Convierte las claves de ciclo a strings y los DataFrames a diccionarios serializables.
+    """
+    serializable_dict = {
+        str(ciclo): {
+            etapa: df.to_dict(orient='list') for etapa, df in etapas.items()
+        }
+        for ciclo, etapas in dict_ciclos_sep.items()
+    }
+
+    with open(output_path, 'w') as f_json:
+        json.dump(serializable_dict, f_json)
+
+    print(f"Archivo JSON creado en: {output_path}")
+
 
 def seleccionar_ciclos(
     dict_ciclos_sep,
@@ -97,7 +114,8 @@ def seleccionar_ciclos(
 
     if verbose:
         print(f"✅ {len(seleccionados)} ciclos seleccionados")
-        print(f"   → {seleccionados[:10]}{'...' if len(seleccionados) > 10 else ''}")
+        #print(f"   → {seleccionados[:10]}{'...' if len(seleccionados) > 10 else ''}")
+        print(f"   → {seleccionados[:]}")
 
     return seleccionados
 
@@ -139,22 +157,45 @@ def carga_y_procesa_datos(input_file):
         dict_ciclos_sep[ciclo] = {'Ch': df_ch, 'Dis': df_dis}
 
     indices_ciclos = list(dict_ciclos.keys())
-    print(f"Total de ciclos encontrados: {len(indices_ciclos)}")
-    print(f"Ciclos disponibles: {indices_ciclos}")
-    
-    # Imprimir ejemplos de los DataFrames de carga y descarga
-    df_ch = dict_ciclos_sep[indices_ciclos[15]]['Ch']
-    df_dis = dict_ciclos_sep[indices_ciclos[15]]['Dis']
-    print('df_ch:')
-    print(df_ch.shape)
-    print(df_ch.head())
-    print(df_ch.iloc[500:505])
-    print(df_ch.tail())
-    print('df_dis:')
-    print(df_dis.shape)
-    print(df_dis.head())
-    print(df_dis.iloc[500:505])
-    print(df_dis.tail())
+
+    # Impresión más legible y segura
+    print('\n' + '='*60)
+    print('📦 Resultados de carga y procesamiento')
+    print('-'*60)
+    print(f'Total de ciclos encontrados: {len(indices_ciclos)}')
+    if len(indices_ciclos) == 0:
+        print('No se encontraron ciclos en el archivo.')
+    else:
+        if len(indices_ciclos) > 10:
+            print(f'Ciclos disponibles (muestra 10 primeros): {indices_ciclos[:10]} ... (total {len(indices_ciclos)})')
+        else:
+            print(f'Ciclos disponibles: {indices_ciclos}')
+
+        # Seleccionar un ciclo de ejemplo de forma segura
+        example_idx = 15 if len(indices_ciclos) > 15 else (len(indices_ciclos) - 1)
+        example_cycle = indices_ciclos[example_idx]
+        df_ch = dict_ciclos_sep[example_cycle]['Ch']
+        df_dis = dict_ciclos_sep[example_cycle]['Dis']
+
+        print('\nEjemplo de ciclo para inspección rápida:')
+        print(f'  → Ciclo seleccionado: {example_cycle} (índice {example_idx})')
+        print(f'  · Carga (Ch): shape = {df_ch.shape}')
+        if not df_ch.empty:
+            print('    Primeras 3 filas de carga:')
+            print(df_ch.head(3).to_string(index=False))
+        else:
+            print('    DataFrame de carga vacío.')
+
+        print(f'  · Descarga (Dis): shape = {df_dis.shape}')
+        if not df_dis.empty:
+            print('    Primeras 3 filas de descarga:')
+            print(df_dis.head(3).to_string(index=False))
+        else:
+            print('    DataFrame de descarga vacío.')
+
+    print('\n✅ LISTO: dict_ciclos_sep = {ciclo: {"Ch": df_ciclo_ch, "Dis": df_ciclo_dis}}')
+    print('   Uso: dict_ciclos_sep[100]["Ch"] devuelve el DataFrame de carga del ciclo 100, si existe')
+    print('='*60 + '\n')
 
     return dict_ciclos, dict_ciclos_sep, indices_ciclos
 
