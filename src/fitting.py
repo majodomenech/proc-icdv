@@ -228,6 +228,30 @@ def plot_emg_fit_poster(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_
 
 
 # --- fiteos ---
+def recalcular_bounds(popt, n_peaks, cfg_bounds):
+    """
+    Recalcula los bounds (límites) de los parámetros de ajuste.
+
+    Parámetros:
+    ------------
+    popt : list or np.array
+        Últimos parámetros ajustados.
+    n_peaks : int
+        Número de picos.
+    cfg_bounds : dict
+        Configuración de bounds, con posibles claves:
+            - 'perc_a', 'perc_mu', 'perc_sigma' : floats (porcentajes)
+            - 'restricciones_mu' : dict {i: (mu_min, mu_max)}
+            - 'min_amp' / 'max_amp' : valores absolutos opcionales
+            - etc.
+    Retorna:
+    ---------
+    (lb, ub) : tuple of np.ndarray
+        Límite inferior y superior.
+    """
+
+    
+
 def recalcular_bounds_lamfijo(popt, n_peaks, cfg_bounds):
     """
     Recalcula los bounds (límites) de los parámetros de ajuste.
