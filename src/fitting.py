@@ -249,12 +249,64 @@ def recalcular_bounds(popt, n_peaks, cfg_bounds):
     (lb, ub) : tuple of np.ndarray
         Límite inferior y superior.
     """
+    perc_a = cfg_bounds.get('perc_a', 0.1)  # toma el valor de perc_a o 0.1 (10%) si no está definido
+    perc_mu = cfg_bounds.get('perc_mu', 0.1)
+    perc_sigma = cfg_bounds.get('perc_sigma', 0.1)
+    perc_lambda = cfg_bounds.get('perc_lambda', 0.1)
+
+    restricciones_a = cfg_bounds.get('restricciones_a', None)
+    restricciones_mu = cfg_bounds.get('restricciones_mu', None)
+    restricciones_sigma = cfg_bounds.get('restricciones_sigma', None)
+    restricciones_lambda = cfg_bounds.get('restricciones_lambda', None)
+
+    lb, ub = [], []
+
+    for i in range(n_peaks):
+        a0, mu0, sigma0, lambda0 = popt[4*i:4*i+4]
+
+        # Límites relativos
+        lb_a, ub_a = (1 - perc_a) * a0, (1 + perc_a) * a0
+        lb_mu, ub_mu = (1 - perc_mu) * mu0, (1 + perc_mu) * mu0
+        lb_s, ub_s = (1 - perc_sigma) * sigma0, (1 + perc_sigma) * sigma0
+        lb_l, ub_l = (1 - perc_lambda) * lambda0, (1 + perc_lambda) * lambda0
+
+        # Restricciones opcionales por pico
+        if restricciones_a and i in restricciones_a:
+            a_min, a_max = restricciones_a[i]
+            lb_a = max(lb_a, a_min)
+            ub_a = min(ub_a, a_max)
+
+        if restricciones_mu and i in restricciones_mu:
+            mu_min, mu_max = restricciones_mu[i]
+            lb_mu = max(lb_mu, mu_min)
+            ub_mu = min(ub_mu, mu_max)
+
+        if restricciones_sigma and i in restricciones_sigma:
+            s_min, s_max = restricciones_sigma[i]
+            lb_s = max(lb_s, s_min)
+            ub_s = min(ub_s, s_max)
+
+        if restricciones_lambda and i in restricciones_lambda:
+            l_min, l_max = restricciones_lambda[i]
+            lb_l = max(lb_l, l_min)
+            ub_l = min(ub_l, l_max)
+        
+        # Agregar los 4 parámetros del pico i
+        lb.extend([lb_a, lb_mu, lb_s, lb_l])
+        ub.extend([ub_a, ub_mu, ub_s, ub_l])
+
+    lb = np.array(lb, dtype=float)
+    ub = np.array(ub, dtype=float)
+    lb[~np.isfinite(lb)] = 0
+    ub[~np.isfinite(ub)] = 1e6
+    return (lb, ub)
 
     
 
 def recalcular_bounds_lamfijo(popt, n_peaks, cfg_bounds):
     """
-    Recalcula los bounds (límites) de los parámetros de ajuste.
+    Recalcula los bounds (límites) de los parámetros de ajuste para amp, mu, sigma.
+    lambda se considera parámetro fijo.
 
     Parámetros:
     ------------
@@ -277,6 +329,8 @@ def recalcular_bounds_lamfijo(popt, n_peaks, cfg_bounds):
     perc_a = cfg_bounds.get('perc_a', 0.1)  # toma el valor de perc_a o 0.1 (10%) si no está definido
     perc_mu = cfg_bounds.get('perc_mu', 0.1)
     perc_sigma = cfg_bounds.get('perc_sigma', 0.1)
+
+    restricciones_a = cfg_bounds.get('restricciones_a', None)
     restricciones_mu = cfg_bounds.get('restricciones_mu', None)
     restricciones_sigma = cfg_bounds.get('restricciones_sigma', None)
 
@@ -300,6 +354,10 @@ def recalcular_bounds_lamfijo(popt, n_peaks, cfg_bounds):
             s_min, s_max = restricciones_sigma[i]
             lb_s = max(lb_s, s_min)
             ub_s = min(ub_s, s_max)
+        
+        # Agregar los 3 parámetros del pico i
+        lb.extend([lb_a, lb_mu, lb_s])
+        ub.extend([ub_a, ub_mu, ub_s])
 
     lb = np.array(lb, dtype=float)
     ub = np.array(ub, dtype=float)
@@ -354,6 +412,9 @@ def fitloop_emg(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None, 
     if cfg_bounds is None:
         cfg_bounds = {}
 
+    print('cfg_bounds:', cfg_bounds)
+    print('--'*20)
+
     resultados = []
     covs = []
     colores = cm.tab10.colors
@@ -362,29 +423,23 @@ def fitloop_emg(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None, 
     n_peaks = len(p_ini_emg)//4  # son 4 los parámetros de una EMG (amp, mu, sigma, lambda)
 
     # --- Ajuste primer ciclo ---
-    df_ch = diccio[ciclos[0]]['Ch']
-    print(f'Ajustando ciclo {ciclos[0]}...')
-    popt, pcov = fit_emg_ciclo(df_ch, p0_actual, bounds_actual)
-    resultados.append(popt)
-    covs.append(pcov)
-
-    # Extraer lambdas para ciclos siguientes
-    #lambdas_fijo = [popt[i] for i in range(len(popt)) if (i+1) % 4 == 0]
-    #popt_sin_lambda = [popt[i] for i in range(len(popt)) if (i+1) % 4 != 0]
-    
-    # Actualizar p0 sin lambdas
-    #p0_actual = [popt[i] for i in range(len(popt)) if (i+1) % 4 != 0]
+    #df_ch = diccio[ciclos[0]]['Ch']
+    #print(f'Ajustando ciclo {ciclos[0]}...')
+    #popt, pcov = fit_emg_ciclo(df_ch, p0_actual, bounds_actual)
+    #resultados.append(popt)
+    #covs.append(pcov)
 
     # Recalcular bounds para el próximo ciclo
-    bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
+    #bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
 
     # Graficar primer ciclo si corresponde
-    if ciclos_grafico and ciclos[0] in ciclos_grafico:
-        plot_emg_fit(df_ch, popt, nombre_ciclo=ciclos[0],
-                     save_path=f'../output/ajuste_C{ciclos[0]}.png')
+    #if ciclos_grafico and ciclos[0] in ciclos_grafico:
+    #    plot_emg_fit(df_ch, popt, nombre_ciclo=ciclos[0],
+    #                 save_path=f'../output/ajuste_C{ciclos[0]}.png')
 
     # Ajuste ciclos restantes
-    for ciclo in ciclos[1:]:
+    for ciclo in ciclos[:]:
+    #for ciclo in ciclos[1:]:
         try:
             df_ch = diccio[ciclo]['Ch']
             print(f'Ajustando ciclo {ciclo}...')
@@ -401,7 +456,7 @@ def fitloop_emg(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None, 
             bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
 
         except Exception as e:
-            print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}")
+            print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}. bounds: {bounds_actual}, p0: {p0_actual}")
             # Agregar NaNs en caso de fallo
             resultados.append([np.nan]*(4*n_peaks))
             covs.append(np.full((4*n_peaks, 4*n_peaks), np.nan))
