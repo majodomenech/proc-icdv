@@ -66,7 +66,11 @@ def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter
         norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
         sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
         sm.set_array([])  # requerido
-        cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+        # ---- Limitar la colorbar a máximo 20 ticks ----
+        n_ticks = min(20, len(indices_ciclos))
+        ticks_cb = np.linspace(min(indices_ciclos), max(indices_ciclos), n_ticks, dtype=int)
+        cbar = plt.colorbar(sm, ax=plt.gca(), ticks=ticks_cb)
+        #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
         cbar.set_label('Cycle number')
     else:
         plt.legend()
@@ -106,7 +110,6 @@ def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter
     plt.savefig(f'../output/{nombre_grafico}_dQdVvsCellV.png', dpi=300)
     plt.show()
     return
-
 
 
 def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=False):

@@ -7,7 +7,7 @@ import matplotlib as mpl
 from scipy.optimize import curve_fit
 import pandas as pd
 from pathlib import Path
-
+from matplotlib.ticker import MaxNLocator
 
 '''
 Funciones para realizar ajustes.
@@ -171,6 +171,51 @@ def plot_emg_fit(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_path=No
         plt.show()
 
 
+def plot_emg_fit_preview(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_path=None):
+    """
+    Grafica datos del ciclo, ajuste total y cada pico individual.
+    """
+    rc_small = {
+        'font.size': 8,
+        'xtick.labelsize': 8,
+        'ytick.labelsize': 8,
+        'axes.labelsize': 8,
+        'axes.titlesize': 9,
+        'legend.fontsize': 7
+    }
+
+    with plt.rc_context(rc_small):
+        V = df_ch['V_ch_savgol'].values
+        dqdv = df_ch['dqdv_ch_calc'].values
+        colors = cm.tab10.colors
+
+        plt.figure(figsize=(4,3))
+        plt.plot(V, dqdv, label="Datos", color='black')
+
+        y_fit = multi_emg(V, *popt)
+        plt.plot(V, y_fit, 'r-', label="Ajuste total")
+
+        n_peaks = len(popt)//4
+        for i in range(n_peaks):
+            a, mu, sigma, lam = popt[4*i:4*i+4]
+            plt.plot(V, emg(V, a, mu, sigma, lam), '--',
+                     color=colors[i % len(colors)], label=f"Pico {i+1}")
+
+        plt.xlabel("Voltaje (V)")
+        plt.ylabel("dQ/dV (mAh/Vg)")
+        plt.title(f"Ajuste ciclo {nombre_ciclo}" if nombre_ciclo else "Ajuste EMG")
+        plt.ylim(ylim)
+        plt.legend()
+        plt.grid(True)
+
+        if save_path:
+            plt.savefig(save_path, dpi=150)
+            plt.show()
+            plt.close()
+        else:
+            plt.show()
+
+
 def plot_emg_fit_poster(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_path=None):
     """
     Gráfico para póster científico: muestra los datos experimentales,
@@ -222,13 +267,79 @@ def plot_emg_fit_poster(df_ch, popt, nombre_ciclo=None, ylim=(-300, 8500), save_
 
     if save_path:
         plt.savefig(save_path, dpi=300, bbox_inches='tight')
+        plt.show()
         plt.close()
     else:
         plt.show()
 
 
+def plot_param_evolution(df, param, n_peaks, nombre, exclude_peaks=None, max_xticks=10):
+    """
+    Grafica la evolución de un parámetro (a, mu, sigma, lambda) para todos los picos.
+    Ajusta automáticamente las unidades del eje y según el parámetro.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame con los parámetros (columnas como 'a1', 'mu1', etc.)
+    param : str
+        Nombre base del parámetro ('a', 'mu', 'sigma', 'lambda')
+    n_peaks : int
+        Número de picos
+    nombre : str
+        Etiqueta para el archivo de salida
+    exclude_peaks : list[int], optional
+        Índices de picos a excluir (base 0)
+    max_xticks : int, optional
+        Número máximo de ticks en el eje x (default 10)
+    """
+    exclude_peaks = exclude_peaks or []
+    colors = ["#1283C5", "#D99C33", "#3AA341", "#E444B7", "#D55E00"]
+
+    # Mapeo de unidades por parámetro
+    unidades = {
+        'a': 'Ah/Vg',
+        'mu': 'V',
+        'sigma': 'V',
+        'lambda': '1/V'
+    }
+    unidad = unidades.get(param, '')
+
+    plt.figure(figsize=(4.5,3.5))
+    for i in range(n_peaks):
+        if i not in exclude_peaks:
+            y = df[f"{param}{i+1}"].values
+            # Escalar si es parámetro 'a'
+            if param == 'a':
+                y = y / 1000
+            plt.plot(
+                df.index, y,
+                'o-', color=colors[i % len(colors)],
+                label=f"Pico {i+1}", markersize=0
+            )
+
+    plt.xlabel("Ciclo")
+    if unidad:
+        plt.ylabel(f"{param} ({unidad})")
+    else:
+        plt.ylabel(param)
+
+    #plt.title(f"Evolución parámetro {param}")
+    if param not in []:
+        plt.legend()
+    plt.grid(True)
+
+    # Ticks automáticos eje x
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(nbins=max_xticks, integer=True))
+
+    plt.tight_layout()
+    plt.savefig(f"../output/evolucion_{param}_{nombre}.png", dpi=300)
+    plt.show()
+
+
 # --- fiteos ---
-def recalcular_bounds(popt, n_peaks, cfg_bounds):
+def construir_bounds(popt, n_peaks, cfg_bounds):
     """
     Recalcula los bounds (límites) de los parámetros de ajuste.
 
@@ -302,8 +413,7 @@ def recalcular_bounds(popt, n_peaks, cfg_bounds):
     return (lb, ub)
 
     
-
-def recalcular_bounds_lamfijo(popt, n_peaks, cfg_bounds):
+def construir_bounds_lamfijo(popt, n_peaks, cfg_bounds):
     """
     Recalcula los bounds (límites) de los parámetros de ajuste para amp, mu, sigma.
     lambda se considera parámetro fijo.
@@ -430,7 +540,7 @@ def fitloop_emg(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None, 
     #covs.append(pcov)
 
     # Recalcular bounds para el próximo ciclo
-    #bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
+    #bounds_actual = construir_bounds(p0_actual, n_peaks, cfg_bounds)
 
     # Graficar primer ciclo si corresponde
     #if ciclos_grafico and ciclos[0] in ciclos_grafico:
@@ -449,14 +559,14 @@ def fitloop_emg(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafico=None, 
             p0_actual = popt_  # vuelvo a actualizar p0 
 
             if ciclos_grafico and ciclo in ciclos_grafico:
-                plot_emg_fit(df_ch, popt_, nombre_ciclo=ciclo,
+                plot_emg_fit_preview(df_ch, popt_, nombre_ciclo=ciclo,
                             save_path=f'../output/ajuste_C{ciclo}.png')
 
             # Recalcular bounds para el próximo ciclo
-            bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
+            bounds_actual = construir_bounds(p0_actual, n_peaks, cfg_bounds)
 
         except Exception as e:
-            print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}. bounds: {bounds_actual}, p0: {p0_actual}")
+            print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}")#. bounds: {bounds_actual}, p0: {p0_actual}")
             # Agregar NaNs en caso de fallo
             resultados.append([np.nan]*(4*n_peaks))
             covs.append(np.full((4*n_peaks, 4*n_peaks), np.nan))
@@ -495,7 +605,7 @@ def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafic
     p0_actual = [popt[i] for i in range(len(popt)) if (i+1) % 4 != 0]
 
     # Recalcular bounds para el próximo ciclo
-    bounds_actual = recalcular_bounds_lamfijo(p0_actual, n_peaks, cfg_bounds)
+    bounds_actual = construir_bounds_lamfijo(p0_actual, n_peaks, cfg_bounds)
 
     # Graficar primer ciclo si corresponde
     if ciclos_grafico and ciclos[0] in ciclos_grafico:
@@ -517,7 +627,7 @@ def fitloop_emg_lamfijo(diccio, ciclos, p_ini_emg, bounds_ini_emg, ciclos_grafic
                             save_path=f'../output/ajuste_C{ciclo}.png')
 
             # Recalcular bounds para el próximo ciclo
-            bounds_actual = recalcular_bounds(p0_actual, n_peaks, cfg_bounds)
+            bounds_actual = construir_bounds(p0_actual, n_peaks, cfg_bounds)
 
         except Exception as e:
             print(f"⚠️ Ajuste del ciclo {ciclo} fallido: {e}")
