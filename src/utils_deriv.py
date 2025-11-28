@@ -11,82 +11,105 @@ Funciones para estudiar cosas particulares de las curvas como la resolución, et
 
 
 # ----------- ESTUDIO RESOLUCION --------------------------------------
-def resolucion_V(indices_ciclos,dict_ciclos_sep):
+def resolucion_V(indices_ciclos, dict_ciclos_sep):
     '''
-    estudio resolucion datos de voltaje y tamaño ventana de suavizado
-    
-    input: indices_ciclos, dict_ciclos_sep
-    output: histograma de los puntos por ventana
-
+    Estudio de la resolución de voltaje y tamaño de ventana de suavizado.
     '''
 
     puntos_por_ventana_ch = []
     puntos_por_ventana_dis = []
-    resoluciones_ch = []
-    resoluciones_dis = []
+    step_ch = []
+    step_dis = []
+
+    reso_string = []
 
     for i in indices_ciclos:
         df_ch = dict_ciclos_sep[i]['Ch']
         df_dis = dict_ciclos_sep[i]['Dis']
-        Q_ch = df_ch['Q'].values
+
         V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
         V_dis = df_dis['CellV'].values
 
-        # Para ver la resolución y el tamaño de window_length
-        resolucion_prom_ch = np.mean(np.abs(np.diff(V_ch))) # Promedio del salto (paso) entre elementos consecutivos
-        print(f"Salto promedio entre elementos consecutivos (resolución) de V_ch: {resolucion_prom_ch:.4f} V")
-        ventana_en_volt = 0.002  # 2 mV
-        window_length_ch = int(np.round(ventana_en_volt / resolucion_prom_ch))
-        print(f"Ventana de suavizado: {window_length_ch} puntos")
-        
-        resolucion_prom_dis = np.mean(np.abs(np.diff(V_dis)))
-        print(f"Salto promedio entre elementos consecutivos (resolución) de V_dis: {resolucion_prom_dis}")
-        ventana_en_volt = 0.002  # 2 mV
-        window_length_dis = int(np.round(ventana_en_volt / resolucion_prom_dis))
-        print(f"Ventana de suavizado: {window_length_dis} puntos")
+        # ΔV promedio (paso)
+        step_prom_ch = np.mean(np.abs(np.diff(V_ch)))
+        step_prom_dis = np.mean(np.abs(np.diff(V_dis)))
 
+        ventana_en_volt = 0.002  # 2 mV
+        window_length_ch = int(np.round(ventana_en_volt / step_prom_ch))
+        window_length_dis = int(np.round(ventana_en_volt / step_prom_dis))
+        reso_string.append(
+            f"Ciclo {i}: ch {step_prom_ch:.6f} V ({window_length_ch} pts), "
+            f"dis {step_prom_dis:.6f} V ({window_length_dis} pts)"
+        )
+
+        step_ch.append(step_prom_ch)
         puntos_por_ventana_ch.append(window_length_ch)
-        resoluciones_ch.append(resolucion_prom_ch)
+        step_dis.append(step_prom_dis)
         puntos_por_ventana_dis.append(window_length_dis)
-        resoluciones_dis.append(resolucion_prom_dis)
 
-    # histograma de resolución de voltaje
-    plt.figure(figsize=(8, 5))
-    ciclos = indices_ciclos
-    ventanas = puntos_por_ventana_ch  # Resolución de voltaje en mV
-    #ventanas = puntos_por_ventana_dis
+    # -----------------------------
+    # Normalización respecto al primer ciclo
+    # -----------------------------
+    r0_ch = 1/step_ch[0]
+    r0_dis = 1/step_dis[0]
 
-    plt.bar(ciclos, ventanas, width=50, color='skyblue', label='Charge')
-    plt.yticks(range(0, 18, 1))
-    plt.xticks(indices_ciclos)
-    plt.xlabel('Ciclo')
-    plt.ylabel('Puntos por ventanas de 2 mV')
-    plt.title('Resolución de voltaje según ciclo')
-    plt.grid(True, axis='y')
-    plt.legend()
+    resolucion_ch = [1/dv for dv in step_ch]
+    resolucion_dis = [1/dv for dv in step_dis]
+    resolucion_norm_ch = [r/r0_ch for r in resolucion_ch]
+    resolucion_norm_dis = [r/r0_ch for r in resolucion_dis]
+    # -----------------------------
+    # Plot ΔV step y resolución normalizada
+    # -----------------------------
+    print("Gráfico: salto promedio de voltaje (ΔV) entre puntos consecutivos. Resolución (r=1/ΔV) normalizada al ciclo de mayor resolución.")
+    fig, ax = plt.subplots(1, 2, figsize=(8, 3), sharey=False)
+
+    # --- ΔV step ---
+    ax[0].scatter(indices_ciclos, step_ch, s=2, color='c', label='Charge')
+    ax[0].scatter(indices_ciclos, step_dis, s=2, color='orange', label='Discharge')
+    ax[0].set_xlabel('Ciclo')
+    ax[0].set_ylabel('ΔV step (V)')
+    ax[0].set_title('Voltaje: salto promedio')
+    ax[0].grid(True, axis='y')
+    ax[0].legend()
+
+    # --- Resolución normalizada ---
+    ax[1].scatter(indices_ciclos, resolucion_norm_ch, s=2, color='c', label='Charge')
+    ax[1].scatter(indices_ciclos, resolucion_norm_dis, s=2, color='orange', label='Discharge')
+    ax[1].set_xlabel('Ciclo')
+    ax[1].set_ylabel('Resolución (r/r0)')
+    ax[1].set_title('Resolución normalizada al max del dataset')
+    ax[1].grid(True, axis='y')
+    ax[1].legend()
+
     plt.tight_layout()
     plt.show()
 
-    # grafico resolución de voltaje
-    plt.figure(figsize=(8, 5))
-    ciclos = indices_ciclos
-    resoluciones = resoluciones_ch  # Resolución de voltaje en mV
-    #resoluciones = resoluciones_dis
-    resoluciones = [r * 1000 for r in resoluciones]
+    # -----------------------------
+    # Plot puntos por ventana de 2 mV
+    # -----------------------------
+    print("Puntos promedio por ventana de 2 mV:")
+    fig, ax = plt.subplots(1, 2, figsize=(8, 3), sharey=True)
 
-    plt.scatter(ciclos, resoluciones, color='c', label='Charge')
-    plt.ylim(0, 0.8)
-    plt.xticks(indices_ciclos)
-    plt.xlabel('Ciclo')
-    plt.ylabel('Resolución de voltaje (mV)')
-    plt.title('Resolución de voltaje según ciclo')
-    plt.grid(True, axis='y')
-    plt.legend()
+    ax[0].bar(indices_ciclos, puntos_por_ventana_ch, width=50, color='skyblue', label='Charge')
+    ax[0].set_xlabel('Ciclo')
+    ax[0].set_ylabel('Puntos por ventana de 2 mV')
+    ax[0].set_title('Charge')
+    ax[0].grid(True, axis='y')
+    ax[0].legend()
+
+    ax[1].bar(indices_ciclos, puntos_por_ventana_dis, width=50, color='orange', label='Discharge')
+    ax[1].set_xlabel('Ciclo')
+    ax[1].set_ylabel('Puntos por ventana de 2 mV')
+    ax[1].set_title('Discharge')
+    ax[1].grid(True, axis='y')
+    ax[1].legend()
+
     plt.tight_layout()
     plt.show()
 
-
+    return
+   
+    
 def resolucion_Q(indices_ciclos,dict_ciclos_sep):
     '''
     estudio resolucion de Q
