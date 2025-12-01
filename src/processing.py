@@ -153,7 +153,11 @@ def carga_y_procesa_datos(input_file):
             df_temp['dCapacity/dCellV'] = df_temp['dCapacity/dCellV'].str.replace(',', '.', regex=False).astype(float) # mAh/V
             df_temp['dCellV/dCapacity'] = df_temp['dCellV/dCapacity'].str.replace(',', '.', regex=False).astype(float) # V/mAh
             df_temp['Q'] = df_temp['Time'] * (abs(df_temp['Current'])) # mAh #/ 3600
-          
+
+            # Ordenar por tiempo
+            df_temp.sort_values('Time', inplace=True)
+            df_temp.reset_index(drop=True, inplace=True)
+
         dict_ciclos_sep[ciclo] = {'Ch': df_ch, 'Dis': df_dis}
 
     indices_ciclos = list(dict_ciclos.keys())
