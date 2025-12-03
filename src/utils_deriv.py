@@ -64,8 +64,10 @@ def resolucion_V(indices_ciclos, dict_ciclos_sep):
     fig, ax = plt.subplots(1, 2, figsize=(8, 3), sharey=False)
 
     # --- ΔV step ---
-    ax[0].scatter(indices_ciclos, step_ch, s=2, color='c', label='Charge')
-    ax[0].scatter(indices_ciclos, step_dis, s=2, color='orange', label='Discharge')
+    #ax[0].scatter(indices_ciclos, step_ch, s=2, color='c', label='Charge')
+    #ax[0].scatter(indices_ciclos, step_dis, s=2, color='orange', label='Discharge')
+    ax[0].plot(indices_ciclos, step_ch, marker='o',color='c', label='Charge')
+    ax[0].plot(indices_ciclos, step_dis, marker='o', color='orange', label='Discharge')
     ax[0].set_xlabel('Ciclo')
     ax[0].set_ylabel('ΔV step (V)')
     ax[0].set_title('Voltaje: salto promedio')
@@ -73,8 +75,10 @@ def resolucion_V(indices_ciclos, dict_ciclos_sep):
     ax[0].legend()
 
     # --- Resolución normalizada ---
-    ax[1].scatter(indices_ciclos, resolucion_norm_ch, s=2, color='c', label='Charge')
-    ax[1].scatter(indices_ciclos, resolucion_norm_dis, s=2, color='orange', label='Discharge')
+    #ax[1].scatter(indices_ciclos, resolucion_norm_ch, s=2, color='c', label='Charge')
+    #ax[1].scatter(indices_ciclos, resolucion_norm_dis, s=2, color='orange', label='Discharge')
+    ax[1].plot(indices_ciclos, resolucion_norm_ch, marker='o', color='c', label='Charge')
+    ax[1].plot(indices_ciclos, resolucion_norm_dis, marker='o', color='orange', label='Discharge')
     ax[1].set_xlabel('Ciclo')
     ax[1].set_ylabel('Resolución (r/r0)')
     ax[1].set_title('Resolución normalizada al max del dataset')

@@ -54,7 +54,7 @@ def plot_soh(dict_ciclos_sep, ciclos, nombre_archivo, output_folder):
     cmap = cm.viridis
 
     plt.figure(figsize=(7, 5))
-    plt.rcParams.update({'font.size': 18})
+    #plt.rcParams.update({'font.size': 18})
 
     plt.plot(df_soh['ciclo'], df_soh['soh'], linestyle='-', color='gray', zorder=1)
     plt.scatter(df_soh['ciclo'], df_soh['soh'],

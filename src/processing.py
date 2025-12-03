@@ -90,7 +90,7 @@ def seleccionar_ciclos(
         Lista ordenada de ciclos seleccionados.
     """
     ciclos = sorted(dict_ciclos_sep.keys())
-    ciclos = sorted(dict_ciclos_sep.keys())[:-1]  # excluye último
+    #ciclos = sorted(dict_ciclos_sep.keys())[:-1]  # excluye último
 
     # Filtrar rango
     if rango:
@@ -120,11 +120,24 @@ def seleccionar_ciclos(
     return seleccionados
 
 
+# --- Bview ---
 def carga_y_procesa_datos(input_file):
     '''
     Carga datos de archivo csv del BCycle, separa por ciclos, separa en carga/descarga,
     y convierte los datos numéricos a float, agregando la columna Q en mAh.
     Se usa una sola vez sobre las mediciones para crear el json que queda en /tmp.
+
+    Input:
+    - input_file: ruta al archivo csv del BCycle
+    
+    - el archivo csv tiene que tener las columnas:
+        'Data' (nombre del ciclo y etapa),
+        'Time' (tiempo en horas, con coma decimal),
+        'Current' (corriente en mA, con coma decimal),
+        'CellV' (voltaje en V, con coma decimal),
+        'dCapacity/dCellV' (mAh/V, con coma decimal),
+        'dCellV/dCapacity' (V/mAh, con coma decimal),
+    - el archivo csv tiene una fila extra al inicio que se elimina.
 
     Outputs:
     - dict_ciclos = {ciclo: df_ciclo}. 
@@ -132,6 +145,14 @@ def carga_y_procesa_datos(input_file):
     - dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}}. 
         Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
     - indices_ciclos = lista de ciclos encontrados
+
+    - df_ciclo_ch y df_ciclo_dis tienen las columnas:
+        'Time' (horas),
+        'Current' (mA),
+        'CellV' (V),
+        'dCapacity/dCellV' (mAh/V),
+        'dCellV/dCapacity' (V/mAh),
+        'Q' (mAh)
     '''
     df = pd.read_csv(input_file, sep='\t', engine='c')
     df = df.drop(df.index[0]).reset_index(drop=True)
@@ -203,3 +224,109 @@ def carga_y_procesa_datos(input_file):
 
     return dict_ciclos, dict_ciclos_sep, indices_ciclos
 
+# --- Arbin ---
+def arbin_excel_a_csv(file_in, carpeta_out):
+    """
+    Convierte todas las hojas Channel del Excel Arbin a CSV.
+    Se saltean hojas Global y Statistics.
+    """
+    file_in = Path(file_in)
+    carpeta_out = Path(carpeta_out)
+    carpeta_out.mkdir(exist_ok=True, parents=True)
+
+    xls = pd.ExcelFile(file_in)
+
+    for sheet in xls.sheet_names:
+        if sheet.startswith("Global") or sheet.startswith("Statistics"):
+            continue
+
+        df = pd.read_excel(file_in, sheet_name=sheet)
+        df.to_csv(carpeta_out / f"{sheet}.csv", index=False)
+        print(f"Guardado: {carpeta_out / f'{sheet}.csv'}")
+
+    print("Conversión a CSV terminada.")
+
+
+def cargar_csv_arbin(carpeta_csv):
+    """
+    Carga todos los CSV generados desde un Excel Arbin.
+    Devuelve un único DataFrame concatenado.
+    """
+    carpeta_csv = Path(carpeta_csv)
+    archivos = sorted(carpeta_csv.glob("*.csv"))
+
+    if not archivos:
+        raise ValueError("No se encontraron CSV en la carpeta.")
+
+    dfs = [pd.read_csv(f) for f in archivos]
+    df_all = pd.concat(dfs, ignore_index=True)
+
+    return df_all
+
+
+def procesar_arbin(df_all):
+    """
+    Recibe el df_all ya cargado desde CSV.
+    Devuelve:
+      - dict_ciclos
+      - dict_ciclos_sep
+      - indices_ciclos
+    """
+
+    columnas = {
+        'time': 'Test_Time(s)',
+        'cycle': 'Cycle_Index',
+        'current': 'Current(A)',
+        'step_time': 'Step_Time(s)',
+        'voltage': 'Voltage(V)',
+    }
+
+    dict_ciclos = {}
+    dict_ciclos_sep = {}
+
+    for ciclo, grupo in df_all.groupby(columnas['cycle']):
+        df_ciclo = grupo.copy().reset_index(drop=True)
+        dict_ciclos[ciclo] = df_ciclo
+
+        # Carga y descarga
+        df_ch  = df_ciclo[df_ciclo[columnas['current']] > 0].copy()
+        df_dis = df_ciclo[df_ciclo[columnas['current']] < 0].copy()
+
+        # Tiempo relativo tipo BView
+        df_ch['Time']  = df_ch[columnas['step_time']].cumsum() / 3600
+        df_dis['Time'] = df_dis[columnas['step_time']].cumsum() / 3600
+
+        # === NUEVO: concatenar tiempos Ch→Dis ===
+        if len(df_ch) > 0 and len(df_dis) > 0:
+            df_dis['Time'] += df_ch['Time'].iloc[-1]
+        # ========================================
+
+        # Corriente en mA
+        df_ch['Current_mA']  = df_ch[columnas['current']] * 1000
+        df_dis['Current_mA'] = df_dis[columnas['current']] * 1000
+
+        # Capacidad equivalente Q = I[mA] * t[h]
+        df_ch['Q']  = df_ch['Time'] * abs(df_ch['Current_mA'])
+        df_dis['Q'] = df_dis['Time'] * abs(df_dis['Current_mA'])
+
+
+        # === NUEVO: renombrar columnas estilo BView ===
+        df_ch['Current'] = df_ch[columnas['current']]
+        df_dis['Current'] = df_dis[columnas['current']]
+
+        df_ch['CellV'] = df_ch[columnas['voltage']]
+        df_dis['CellV'] = df_dis[columnas['voltage']]
+
+        # Dejar SOLO las 4 columnas finales estilo BView
+        df_ch = df_ch[['Time', 'Current', 'CellV', 'Q']]
+        df_dis = df_dis[['Time', 'Current', 'CellV', 'Q']]
+        # ===============================================
+
+
+        df_ch.reset_index(drop=True, inplace=True)
+        df_dis.reset_index(drop=True, inplace=True)
+
+        dict_ciclos_sep[ciclo] = {"Ch": df_ch, "Dis": df_dis}
+
+    indices_ciclos = sorted(dict_ciclos.keys())
+    return dict_ciclos, dict_ciclos_sep, indices_ciclos
