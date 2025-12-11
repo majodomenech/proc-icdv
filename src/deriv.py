@@ -15,7 +15,7 @@ Funciones para trabajar con las derivadas IC, DV.
 '''
 # ----------- tools -------------
 
-def truncar_señal(indices_ciclos, dict_ciclos_sep, n_dis=10, n_ch=30):
+def truncar_señal(indices_ciclos, dict_ciclos_sep, Q='Q', CellV='CellV', n_dis=(10,0), n_ch=(30,0)):
     '''
     Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
     Parámetros
@@ -40,20 +40,26 @@ def truncar_señal(indices_ciclos, dict_ciclos_sep, n_dis=10, n_ch=30):
         df_ch = dict_ciclos_sep[i]['Ch']
         df_dis = dict_ciclos_sep[i]['Dis']
 
-        Q_ch = df_ch['Q'].values
-        V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
-        V_dis = df_dis['CellV'].values
+        Q_ch = df_ch[Q].values
+        V_ch = df_ch[CellV].values
+        Q_dis = df_dis[Q].values
+        V_dis = df_dis[CellV].values
 
         # Truncar el eje Q y V
-        Q_ch_trunc = Q_ch[n_ch:]
-        V_ch_trunc = V_ch[n_ch:]
-        Q_dis_trunc = Q_dis[n_dis:]  # El array de descarga tiene los voltajes ordenados de mayor a menor.
-        V_dis_trunc = V_dis[n_dis:]
+        Q_ch_trunc = Q_ch[n_ch[0]:]  # Truncamos los valores iniciales
+        V_ch_trunc = V_ch[n_ch[0]:]
+        Q_ch_trunc = Q_ch_trunc[:len(Q_ch_trunc)-n_ch[1]]  # Truncamos los valores finales
+        V_ch_trunc = V_ch_trunc[:len(V_ch_trunc)-n_ch[1]]
+
+                                        # El array de descarga tiene los voltajes ordenados de mayor a menor.
+        Q_dis_trunc = Q_dis[n_dis[0]:]  # Truncamos los valores iniciales
+        V_dis_trunc = V_dis[n_dis[0]:]
+        Q_dis_trunc = Q_dis_trunc[:len(Q_dis_trunc)-n_dis[1]]  # Truncamos los valores finales
+        V_dis_trunc = V_dis_trunc[:len(V_dis_trunc)-n_dis[1]]
 
         # Crear nuevos DataFrames
-        df_ch_trunc = pd.DataFrame({'Q': Q_ch_trunc, 'CellV': V_ch_trunc})
-        df_dis_trunc = pd.DataFrame({'Q': Q_dis_trunc, 'CellV': V_dis_trunc})
+        df_ch_trunc = pd.DataFrame({str(Q): Q_ch_trunc, str(CellV): V_ch_trunc})
+        df_dis_trunc = pd.DataFrame({str(Q): Q_dis_trunc, str(CellV): V_dis_trunc})
 
         dict_truncado[i] = {
             'Ch': df_ch_trunc,
@@ -127,8 +133,92 @@ def extender_señal(indices_ciclos, dict_ciclos_sep):
     return dict_extendido
 
 
+def agrupar_por_voltaje(df, n_decimales=8, metodo='mean'):
+    """
+    (es para solucionar el problema de voltajes repetidos para distintos tiempos, 
+    por la incertidumbre experimental en la medición de V)
+
+    Reduce duplicados: deja un solo punto Q(V) para cada voltaje. 
+    Es decir, promedia los valores de Q (o tiempo) para cada V repetido.
+    n_decimales: controla el redondeo del voltaje para agrupar.
+    metodo: 'mean' o 'median' para colapsar Q.
+
+    Cada df_ch y df_dis va a tener ahora:
+    Time
+    Current
+    CellV
+    Q
+    V_round          ← agregado
+    agg-Q            ← capacidad agregada por voltaje
+    agg-Q_std        ← incertidumbre dentro del grupo
+    agg-CellV        ← voltaje medio real del grupo
+    """
+
+    df = df.copy()
+
+    # Redondeo para agrupar valores casi iguales de V
+    df['V_round'] = df['CellV'].round(n_decimales)
+
+    # --- agregados por grupo ---
+    if metodo == 'median':
+        agg_Q = df.groupby('V_round')['Q'].median()
+    else:
+        agg_Q = df.groupby('V_round')['Q'].mean()
+
+    agg_std = df.groupby('V_round')['Q'].std().fillna(0)
+    agg_V = df.groupby('V_round')['CellV'].mean()
+
+    # Armamos df de agregados
+    df_ag = pd.DataFrame({
+        'V_round': agg_Q.index,
+        'agg-Q': agg_Q.values,
+        'agg-Q_std': agg_std.values,
+        'agg-CellV': agg_V.values
+    })
+
+    # Merge para agregar columnas nuevas al DF original
+    df = df.merge(df_ag, on='V_round', how='left')
+
+    return df
+
+
+def agrupar_por_voltaje_todos(dict_ciclos_sep, n_decimales=4, metodo='mean'):
+    """
+    Aplica agrupar_por_voltaje a todos los ciclos del diccionario:
+        dict_ciclos_sep[ciclo] = {"Ch": df_ch, "Dis": df_dis}
+
+    Devuelve:
+        dict_agru = { ciclo : { "Ch": df_ag_ch, "Dis": df_ag_dis } }
+
+    
+    Cada df_ch y df_dis va a tener ahora:
+    Time
+    Current
+    CellV
+    Q
+    V_round          ← agregado
+    agg-Q            ← capacidad agregada por voltaje
+    agg-Q_std        ← incertidumbre dentro del grupo
+    agg-CellV        ← voltaje medio real del grupo
+    """
+
+    dict_agru = {}
+
+    for ciclo, dic in dict_ciclos_sep.items():
+
+        df_ch  = agrupar_por_voltaje(dic["Ch"],  n_decimales=n_decimales, metodo=metodo)
+        df_dis = agrupar_por_voltaje(dic["Dis"], n_decimales=n_decimales, metodo=metodo)
+
+        dict_agru[ciclo] = {
+            "Ch": df_ch,
+            "Dis": df_dis
+        }
+
+    return dict_agru
+
+
 # ----------- ESTUDIO DERIVADA VARIANDO PARAMETROS FILTRO -------------
-def plot_dqdv_muchos_wl(indices_ciclos,dict, wl_values=None, truncar_values=None):
+def plot_dqdv_muchos_wl(indices_ciclos, diccio, wl_values_ch=None, wl_values_dis=None, truncar_values=None, CellV='CellV', Q='Q'):
     '''
     Función para plotear dQ/dV variando los parámetros del filtro Savitzky-Golay. También permite truncar.
     Parámetros
@@ -138,16 +228,22 @@ def plot_dqdv_muchos_wl(indices_ciclos,dict, wl_values=None, truncar_values=None
     truncar_values: lista de valores para truncar los datos (para descarga). La carga será 3 veces este valor.
     '''
 
-    if wl_values is None:
+    if wl_values_ch is None or wl_values_dis is None:
         windowlengths_dis = np.array([51,53,57,59,61,63])
+        windowlengths_ch = windowlengths_dis * 3
     else:
-        windowlengths_dis = np.array(wl_values)
-    windowlengths_ch = windowlengths_dis * 3
+        windowlengths_dis = np.array(wl_values_dis)
+        windowlengths_ch = np.array(wl_values_ch)
+
     polyorder = 3
 
     if truncar_values is not None:
         n_dis, n_ch = truncar_values
-        dict = truncar_señal(indices_ciclos, dict, n_dis=n_dis, n_ch=n_ch)
+        diccio = truncar_señal(indices_ciclos, diccio, n_dis=n_dis, n_ch=n_ch, CellV=CellV, Q=Q)
+
+
+    print(diccio[3]['Ch'].head())
+    print(diccio[3]['Ch'].shape)
 
     ncols = 3
     nrows = int(np.ceil(len(windowlengths_dis) / ncols))
@@ -156,24 +252,24 @@ def plot_dqdv_muchos_wl(indices_ciclos,dict, wl_values=None, truncar_values=None
     axs = axs.flatten()
     colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
 
-    count = 0
-    for ax, wl_dis in zip(axs, windowlengths_dis):
-        wl_ch = windowlengths_ch[count]
-        count+=1
+    for idx, (ax, wl_dis) in enumerate(zip(axs, windowlengths_dis)):
+        wl_ch = windowlengths_ch[idx]
         for i, color in zip(indices_ciclos, colors):
-            df_ch = dict[i]['Ch']
-            df_dis = dict[i]['Dis']
+            df_ch = diccio[i]['Ch']
+            df_dis = diccio[i]['Dis']
 
-            Q_ch = df_ch['Q'].values
-            V_ch = df_ch['CellV'].values
-            Q_dis = df_dis['Q'].values
-            V_dis = df_dis['CellV'].values
+            Q_ch = df_ch[Q].values
+            V_ch = df_ch[CellV].values
+            Q_dis = df_dis[Q].values
+            V_dis = df_dis[CellV].values
 
             # Verifica que wl sea menor que el tamaño de Q_dis y sea impar
             if wl_dis >= len(Q_dis) or wl_ch >= len(Q_ch):
                 continue
-            if wl_dis % 2 == 0 or wl_ch % 2 == 0:
-                wl += 1
+            if wl_dis % 2 == 0:
+                wl_dis += 1
+            if wl_ch % 2 == 0:
+                wl_ch += 1
 
             Q_ch_savgol = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
             V_ch_savgol = savgol_filter(V_ch, window_length=wl_ch, polyorder=polyorder)
@@ -397,7 +493,7 @@ def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
 
 # ----------- CALCULO DERIVADA CON FILTRO SAVITZKY-GOLAY -------------
 
-def plot_dqdV(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3, colorbar=False):
+def plot_dqdV(indices_ciclos,dict_ciclos_sep, Q='Q', CellV='CellV', wl_dis=51, wl_ch=153, polyorder=3, colorbar=False):
     '''
     Función simple de plot dqdv con filtro
     Actualiza el dict de entrada con los datos de Q y V suavizados y los valores de dVdQ calculados.
@@ -425,10 +521,10 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3,
         df_ch = dict_ciclos_sep[i]['Ch']
         df_dis = dict_ciclos_sep[i]['Dis']
 
-        Q_ch = df_ch['Q'].values
-        V_ch = df_ch['CellV'].values
-        Q_dis = df_dis['Q'].values
-        V_dis = df_dis['CellV'].values
+        Q_ch = df_ch[Q].values
+        V_ch = df_ch[CellV].values
+        Q_dis = df_dis[Q].values
+        V_dis = df_dis[CellV].values
 
         # Aplica filtro Savitzky-Golay (smooth de la señal)
         df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
@@ -437,8 +533,10 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3,
         df_dis['V_dis_savgol'] = savgol_filter(V_dis, window_length=wl_dis, polyorder=polyorder)
 
         # Calcula dQdV
+        #df_ch['dqdv_ch_calc'] = np.gradient(df_ch['Q_ch_savgol'].values, df_ch['V_ch_savgol'].values)
         df_ch['dqdv_ch_calc'] = np.gradient(df_ch['Q_ch_savgol'].values, df_ch['V_ch_savgol'].values)
         dqdv_ch = df_ch['dqdv_ch_calc'].values
+        #df_dis['dqdv_dis_calc'] = np.gradient(df_dis['Q_dis_savgol'].values, df_dis['V_dis_savgol'].values)
         df_dis['dqdv_dis_calc'] = np.gradient(df_dis['Q_dis_savgol'].values, df_dis['V_dis_savgol'].values)
         dqdv_dis = df_dis['dqdv_dis_calc'].values
 
@@ -460,6 +558,8 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3,
             cbar.set_label('Cycle number')
     else:
         plt.legend()
+
+    #plt.xlim(3.5,4.25)
 
     plt.xlabel('Voltage (V)')
     plt.ylabel('dQ/dV (mAh/V)')

@@ -11,7 +11,7 @@ Funciones para estudiar cosas particulares de las curvas como la resolución, et
 
 
 # ----------- ESTUDIO RESOLUCION --------------------------------------
-def resolucion_V(indices_ciclos, dict_ciclos_sep):
+def resolucion_V(indices_ciclos, dict_ciclos_sep, x='CellV'):
     '''
     Estudio de la resolución de voltaje y tamaño de ventana de suavizado.
     '''
@@ -27,8 +27,8 @@ def resolucion_V(indices_ciclos, dict_ciclos_sep):
         df_ch = dict_ciclos_sep[i]['Ch']
         df_dis = dict_ciclos_sep[i]['Dis']
 
-        V_ch = df_ch['CellV'].values
-        V_dis = df_dis['CellV'].values
+        V_ch = df_ch[x].values
+        V_dis = df_dis[x].values
 
         # ΔV promedio (paso)
         step_prom_ch = np.mean(np.abs(np.diff(V_ch)))
