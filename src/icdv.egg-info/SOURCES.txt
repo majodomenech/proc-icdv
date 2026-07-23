@@ -1,0 +1,12 @@
+README.md
+pyproject.toml
+src/icdv/__init__.py
+src/icdv/deriv.py
+src/icdv/fitting.py
+src/icdv/plotting.py
+src/icdv/processing.py
+src/icdv/utils_deriv.py
+src/icdv.egg-info/PKG-INFO
+src/icdv.egg-info/SOURCES.txt
+src/icdv.egg-info/dependency_links.txt
+src/icdv.egg-info/top_level.txt

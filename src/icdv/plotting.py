@@ -14,11 +14,12 @@ Funciones para hacer plots simples.
 
 '''
 
+# -------------------------------------------------------------------------------------------
+# Plots iniciales: Soh, V vs t, V vs Q.
+# -------------------------------------------------------------------------------------------
 
-# %% -------  Plots simples --------------------------------------------------------------------
 
-
-def plot_soh(dict_ciclos_sep, ciclos, nombre_archivo, output_folder):
+def plot_soh(indices_ciclos, dict_ciclos_sep, var='Q', nombre_grafico='plot', output_folder='.'):
     """
     Calcula qmax por ciclo, obtiene el qmax global, calcula SoH y genera
     un gráfico de SoH coloreado según el número de ciclo.
@@ -32,8 +33,8 @@ def plot_soh(dict_ciclos_sep, ciclos, nombre_archivo, output_folder):
 
     # ---- Cálculo de qmax global ----
     soh_data = []
-    for ciclo in ciclos:
-        qmax = dict_ciclos_sep[ciclo]['Ch']['Q'].max()
+    for ciclo in indices_ciclos:
+        qmax = dict_ciclos_sep[ciclo]['Ch'][var].max()
         soh_data.append({'ciclo': ciclo, 'qmax': qmax})
 
     qmax_global = max(d['qmax'] for d in soh_data)
@@ -51,7 +52,7 @@ def plot_soh(dict_ciclos_sep, ciclos, nombre_archivo, output_folder):
     # ---- Gráfico ----
     norm = mcolors.Normalize(vmin=df_soh['ciclo'].min(), 
                               vmax=df_soh['ciclo'].max())
-    cmap = cm.viridis
+    cmap = plt.colormaps['viridis']
 
     plt.figure(figsize=(7, 5))
     #plt.rcParams.update({'font.size': 18})
@@ -66,29 +67,34 @@ def plot_soh(dict_ciclos_sep, ciclos, nombre_archivo, output_folder):
     plt.grid(True)
     plt.tight_layout()
 
-    plt.savefig(output_folder / f'{nombre_archivo}_SoH_vs_cycle_colorido.png',
+    output_folder = Path(output_folder)
+    plt.savefig(output_folder / f'{nombre_grafico}_SoH_vs_cycle_colorido.png',
                 dpi=300)
     plt.show()
 
     return df_soh, qmax_global, ciclo_qmax_global
 
 
-def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter=False):
+def plot_n_cycles_tvsV(indices_ciclos, dict, vars=['Time','CellV'], semi='both', nombre_grafico='plot', output_folder='.', scatter=False):
     '''
-    x,y = 'CellV', 'dCapacity/dCellV'
+    x,y = 'Time', 'CellV'
 
     dict es:  
         dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
         Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
     '''
+    x = vars[0]
+    y = vars[1]
 
-    plt.figure(figsize=(8,5))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    indices_ciclos_totales = sorted(dict.keys())
+     
+    plt.figure(figsize=(10,4))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos_totales))) # paleta completa (uno por cada ciclo real)
+    color_map = {c: colors[i] for i, c in enumerate(indices_ciclos_totales)} # map: ciclo_real -> color_correcto
 
-    x = 'CellV'
-    y = 'dCapacity/dCellV'
-
-    for i, color in zip(indices_ciclos, colors):
+    print(indices_ciclos)
+    for i in indices_ciclos:
+        color = color_map[i]
         df_ch = dict[i]['Ch']
         df_dis = dict[i]['Dis']
 
@@ -96,42 +102,149 @@ def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter
         y_ch = df_ch[y].values
         x_dis = df_dis[x].values
         y_dis = df_dis[y].values
-
-        if scatter:
-            plt.scatter(x_ch, y_ch, marker='o', linestyle='-',color=color,s=1)#, markersize=0.1)
-            plt.scatter(x_dis, y_dis, marker='o', linestyle='-',color=color,s=0.1)#,markersize=0.1)
-        else:
-            # ------- Charge -------
-            plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
-            
-            # ------- Discharge -------
-            plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1)
-
-            # chequeos
-            #x_max_ch=np.max(x_ch)
-            #x_min_dis=np.min(x_dis)
-            #plt.axvline(x_max_ch, color='gray', linestyle='--', linewidth=1, label=f'Q max ({x_max_ch:.2f} mAh)')
-            #plt.axvline(x_min_dis, color='gray', linestyle='--', linewidth=1, label=f'Q max ({x_min_dis:.2f} mAh)')
-
-    if len(indices_ciclos) > 10:
-        plt.legend().remove()
         
-        # Crear colorbar asociada a los ciclos
-        norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
-        sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
-        sm.set_array([])  # requerido
-        # ---- Limitar la colorbar a máximo 20 ticks ----
-        n_ticks = min(20, len(indices_ciclos))
-        ticks_cb = np.linspace(min(indices_ciclos), max(indices_ciclos), n_ticks, dtype=int)
-        cbar = plt.colorbar(sm, ax=plt.gca(), ticks=ticks_cb)
-        cbar.ax.tick_params(labelsize=12)   # <--- ajustar fontsize de los ticks
-        cbar.set_label('Cycle number', fontsize=14)
-        #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
-    else:
-        plt.legend()
-    
+        # ------- Charge -------
+        if semi in ['both']:
+            plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1)
+        elif semi in ['Ch']:
+            plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+        # ------- Discharge -------
+        elif semi in ['Dis']:
+            plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+        else:
+            raise ValueError("El parámetro 'semi' debe ser 'Ch', 'Dis' o 'both'.")
 
-    x_string = 'dQdV'
+    # Crear colorbar asociada a los ciclos
+    #norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+    #sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+    #sm.set_array([])  # requerido
+    #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+    #cbar.set_label('Cycle number')
+
+    
+    plt.xlabel(f'{x}', fontsize=16)
+    plt.ylabel(f'{y}', fontsize=16)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+    plt.title(f'{y} vs {x}', fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
+    output_folder = Path(output_folder)
+    plt.savefig(f'{output_folder}/{nombre_grafico}_{y}vs{x}.png', dpi=300)
+    plt.show()
+    return
+
+
+def plot_n_cycles_QvsV_ARBIN(indices_ciclos, dict, vars=['Q_mAh','CellV_V'], semi='both', nombre_grafico='plot', output_folder='.', scatter=False):
+    '''
+    dict es:  
+        dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
+        Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
+    '''
+    x = vars[0]
+    y = vars[1]
+
+    indices_ciclos_totales = sorted(dict.keys())
+     
+    plt.figure(figsize=(10,4))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos_totales))) # paleta completa (uno por cada ciclo real)
+    color_map = {c: colors[i] for i, c in enumerate(indices_ciclos_totales)} # map: ciclo_real -> color_correcto
+
+    print(indices_ciclos)
+    for i in indices_ciclos:
+        color = color_map[i]
+        df_ch = dict[i]['Ch']
+        df_dis = dict[i]['Dis']
+
+        x_ch = df_ch[x].values
+        y_ch = df_ch[y].values
+        x_dis = df_dis[x].values
+        y_dis = df_dis[y].values
+        
+        # ------- Charge -------
+        if semi in ['both']:
+            plt.scatter(x_ch, y_ch, marker='o', linestyle='-',color=color, label=f'Ciclo {i}', s=1)
+            plt.scatter(x_dis, y_dis, marker='o', linestyle='-',color=color, s=1)
+        elif semi in ['Ch']:
+            #plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            plt.scatter(x_ch, y_ch, marker='o', linestyle='-',color=color, s=1, label=f'Ciclo {i}')
+        # ------- Discharge -------
+        elif semi in ['Dis']:
+            #plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+            plt.scatter(x_dis, y_dis, marker='o', linestyle='-',color=color, s=1, label=f'Ciclo {i}')
+        else:
+            raise ValueError("El parámetro 'semi' debe ser 'Ch', 'Dis' o 'both'.")
+
+    # Crear colorbar asociada a los ciclos
+    #norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+    #sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+    #sm.set_array([])  # requerido
+    #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+    #cbar.set_label('Cycle number')
+
+    
+    plt.xlabel(f'{x}', fontsize=16)
+    plt.ylabel(f'{y}', fontsize=16)
+    plt.xticks(fontsize=10)
+    plt.yticks(fontsize=10)
+    plt.title(f'{y} vs {x}', fontsize=12)
+    plt.grid(True)
+    plt.tight_layout()
+    output_folder = Path(output_folder)
+    plt.savefig(f'{output_folder}/{nombre_grafico}_{y}vs{x}.png', dpi=300)
+    plt.show()
+    return
+
+
+def plot_n_cycles_QvsV_ARBIN_amano(indices_ciclos, dict, graficar='both', nombre_grafico='plot', output_folder='.', scatter=False):
+    '''
+    dict es:  
+        dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
+        Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
+    '''
+    
+    x = 'Time'
+    y = 'CellV'
+
+    plt.figure(figsize=(8,5))
+    #plt.rcParams.update({'font.size': 12})
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
+
+    for i, color in zip(indices_ciclos, colors):
+        df_ch = dict[i]['Ch']
+        df_dis = dict[i]['Dis']
+
+        x_ch = df_ch[x].values
+        y_ch = df_ch[y].values
+        i_ch = df_ch['Current'].values * 1000 # convierto A a mA
+
+        x_dis = df_dis[x].values
+        y_dis = df_dis[y].values
+        i_dis = df_dis['Current'].values * 1000 # convierto A a mA
+
+        # ------- Charge -------
+        if graficar in ['both']:
+            plt.plot(x_ch*i_ch/3600, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            plt.plot(-x_dis*i_dis/3600, y_dis, marker='o', linestyle='-',color=color,markersize=0.1)
+        elif graficar in ['Ch']:
+            plt.plot(x_ch*i_ch/3600, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+        # ------- Discharge -------
+        elif graficar in ['Dis']:
+            plt.plot(-x_dis*i_dis/3600, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
+        else:
+            raise ValueError("El parámetro 'graficar' debe ser 'Ch', 'Dis' o 'both'.")
+
+
+    # Crear colorbar asociada a los ciclos
+    #norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+    #sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+    #sm.set_array([])  # requerido
+    #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+    #cbar.set_label('Cycle number')
+
+    x_string = 'dQdV' if x == 'dCapacity/dCellV' else 'dVdQ' if x == 'dCellV/dCapacity' else x
+    y_string = 'dQdV' if y == 'dCapacity/dCellV' else 'dVdQ' if y == 'dCellV/dCapacity' else y
     
     labels_con_unidades = {
         'Time': 'Time (hour)',
@@ -145,24 +258,18 @@ def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter
     x_label = labels_con_unidades.get(x, x)
     y_label = labels_con_unidades.get(y, y)
     
-    #plt.ylim(-0.0025,0.0025) # para dV/dQ
-    #plt.ylim(0,0.002) # para dV/dQ charge
-    #plt.ylim(-0.002,0) # para dV/dQ discharge
-    #plt.xlim(0,3000)
-    #plt.ylim(2.9,4.5)
-    #plt.xlim(-60,2650)
-    
-    plt.xlabel(f'{x_label}', fontsize=14)
-    plt.ylabel(f'{y_label}', fontsize=14)
+    plt.xlabel(f'Q (mAh)', fontsize=16)
+    plt.ylabel(f'{y_label}', fontsize=16)
     # ticks
     plt.xticks(fontsize=12)
     plt.yticks(fontsize=12)
-
-    plt.title(f'{y} vs {x}', fontsize=12)
+    #plt.legend(fontsize=12)
+    plt.title(f'{y} vs Q', fontsize=12)
     plt.grid(True)
-    
+    #plt.legend()
     plt.tight_layout()
-    plt.savefig(f'../output/{nombre_grafico}_dQdVvsCellV.png', dpi=300)
+    output_folder = Path(output_folder)
+    plt.savefig(f'{output_folder}/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
     plt.show()
     return
 
@@ -184,7 +291,7 @@ def plot_n_cycles_tvsV_continuo(indices_ciclos, dict, nombre_grafico='plot', sca
      
     plt.figure(figsize=(10,4))
     # paleta completa (uno por cada ciclo real)
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos_totales)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos_totales)))
     # map: ciclo_real -> color_correcto
     color_map = {c: colors[i] for i, c in enumerate(indices_ciclos_totales)}
 
@@ -255,80 +362,9 @@ def plot_n_cycles_tvsV_continuo(indices_ciclos, dict, nombre_grafico='plot', sca
     return
 
 
-def plot_n_cycles_tvsV(indices_ciclos, dict, nombre_grafico='plot', scatter=False):
-    '''
-    x,y = 'Time', 'CellV'
-
-    dict es:  
-        dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
-        Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
-    '''
-    x = 'Time'
-    y = 'CellV'
-
-    indices_ciclos_totales = sorted(dict.keys())
-     
-    plt.figure(figsize=(10,4))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos_totales))) # paleta completa (uno por cada ciclo real)
-    color_map = {c: colors[i] for i, c in enumerate(indices_ciclos_totales)} # map: ciclo_real -> color_correcto
-
-    print(indices_ciclos)
-    for i in indices_ciclos:
-        color = color_map[i]
-        df_ch = dict[i]['Ch']
-        df_dis = dict[i]['Dis']
-
-        x_ch = df_ch[x].values
-        y_ch = df_ch[y].values
-        x_dis = df_dis[x].values
-        y_dis = df_dis[y].values
-        
-        # ------- Charge -------
-        plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
-        # ------- Discharge -------
-        plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1, label=f'Ciclo {i}')
-
-    # Crear colorbar asociada a los ciclos
-    #norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
-    #sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
-    #sm.set_array([])  # requerido
-    #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
-    #cbar.set_label('Cycle number')
-
-    x_string = 'dQdV' if x == 'dCapacity/dCellV' else 'dVdQ' if x == 'dCellV/dCapacity' else x
-    y_string = 'dQdV' if y == 'dCapacity/dCellV' else 'dVdQ' if y == 'dCellV/dCapacity' else y
-    
-    labels_con_unidades = {
-        'Time': 'Time (hour)',
-        'Q': 'Q (mAh)',
-        'CellV': 'CellV (V)',
-        'dCapacity/dCellV': 'dQdV (mAh/V)',
-        'dCellV/dCapacity': 'dVdQ (V/mAh)',
-        'Current': 'Current (A)',
-        }
-
-    x_label = labels_con_unidades.get(x, x)
-    y_label = labels_con_unidades.get(y, y)
-    
-    #plt.ylim(-0.0025,0.0025) # para dV/dQ
-    #plt.ylim(0,0.002) # para dV/dQ charge
-    #plt.ylim(-0.002,0) # para dV/dQ discharge
-    #plt.xlim(0,3000)
-    plt.ylim(2.9,4.5)
-    #plt.xlim(-60,2650)
-    
-    plt.xlabel(f'{x_label}', fontsize=16)
-    plt.ylabel(f'{y_label}', fontsize=16)
-    plt.xticks(fontsize=10)
-    plt.yticks(fontsize=10)
-
-    plt.title(f'{y} vs {x}', fontsize=12)
-    plt.grid(True)
-    
-    plt.tight_layout()
-    plt.savefig(f'../output/{nombre_grafico}_{y_string}vs{x_string}.png', dpi=300)
-    plt.show()
-    return
+# -------------------------------------------------------------------------------------------
+# Plots secundarios: dQ/dV vs V
+# -------------------------------------------------------------------------------------------
 
 
 def plot_n_cycles_Vvst(indices_ciclos, dict, nombre_grafico='plot', scatter=False):
@@ -345,7 +381,7 @@ def plot_n_cycles_Vvst(indices_ciclos, dict, nombre_grafico='plot', scatter=Fals
     indices_ciclos_totales = sorted(dict.keys())
      
     plt.figure(figsize=(10,4))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos_totales))) # paleta completa (uno por cada ciclo real)
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos_totales))) # paleta completa (uno por cada ciclo real)
     color_map = {c: colors[i] for i, c in enumerate(indices_ciclos_totales)} # map: ciclo_real -> color_correcto
 
     print(indices_ciclos)
@@ -407,7 +443,98 @@ def plot_n_cycles_Vvst(indices_ciclos, dict, nombre_grafico='plot', scatter=Fals
     return
 
 
+def plot_n_cycles_dqdv(indices_ciclos, dict, nombre_grafico='plot_dqdv', scatter=False):
+    '''
+    x,y = 'CellV', 'dCapacity/dCellV'
 
+    dict es:  
+        dict_ciclos_sep = {ciclo: {'Ch': df_ciclo_ch, 'Dis': df_ciclo_dis}} 
+        Uso: ciclos_sep[100]['Ch'] te da el df de carga del ciclo 100
+    '''
+
+    plt.figure(figsize=(8,5))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
+
+    x = 'CellV'
+    y = 'dCapacity/dCellV'
+
+    for i, color in zip(indices_ciclos, colors):
+        df_ch = dict[i]['Ch']
+        df_dis = dict[i]['Dis']
+
+        x_ch = df_ch[x].values
+        y_ch = df_ch[y].values
+        x_dis = df_dis[x].values
+        y_dis = df_dis[y].values
+
+        if scatter:
+            plt.scatter(x_ch, y_ch, marker='o', linestyle='-',color=color,s=1)#, markersize=0.1)
+            plt.scatter(x_dis, y_dis, marker='o', linestyle='-',color=color,s=0.1)#,markersize=0.1)
+        else:
+            # ------- Charge -------
+            plt.plot(x_ch, y_ch, marker='o', linestyle='-',color=color, markersize=0.1, label=f'Ciclo {i}')
+            
+            # ------- Discharge -------
+            plt.plot(x_dis, y_dis, marker='o', linestyle='-',color=color,markersize=0.1)
+
+            # chequeos
+            #x_max_ch=np.max(x_ch)
+            #x_min_dis=np.min(x_dis)
+            #plt.axvline(x_max_ch, color='gray', linestyle='--', linewidth=1, label=f'Q max ({x_max_ch:.2f} mAh)')
+            #plt.axvline(x_min_dis, color='gray', linestyle='--', linewidth=1, label=f'Q max ({x_min_dis:.2f} mAh)')
+
+    if len(indices_ciclos) > 10:
+        plt.legend().remove()
+        
+        # Crear colorbar asociada a los ciclos
+        norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
+        sm = cm.ScalarMappable(cmap=plt.colormaps['viridis'], norm=norm)
+        sm.set_array([])  # requerido
+        # ---- Limitar la colorbar a máximo 20 ticks ----
+        n_ticks = min(20, len(indices_ciclos))
+        ticks_cb = np.linspace(min(indices_ciclos), max(indices_ciclos), n_ticks, dtype=int)
+        cbar = plt.colorbar(sm, ax=plt.gca(), ticks=ticks_cb)
+        cbar.ax.tick_params(labelsize=12)   # <--- ajustar fontsize de los ticks
+        cbar.set_label('Cycle number', fontsize=14)
+        #cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
+    else:
+        plt.legend()
+    
+
+    x_string = 'dQdV'
+    
+    labels_con_unidades = {
+        'Time': 'Time (hour)',
+        'Q': 'Q (mAh)',
+        'CellV': 'CellV (V)',
+        'dCapacity/dCellV': 'dQdV (mAh/V)',
+        'dCellV/dCapacity': 'dVdQ (V/mAh)',
+        'Current': 'Current (A)',
+        }
+
+    x_label = labels_con_unidades.get(x, x)
+    y_label = labels_con_unidades.get(y, y)
+    
+    #plt.ylim(-0.0025,0.0025) # para dV/dQ
+    #plt.ylim(0,0.002) # para dV/dQ charge
+    #plt.ylim(-0.002,0) # para dV/dQ discharge
+    #plt.xlim(0,3000)
+    #plt.ylim(2.9,4.5)
+    #plt.xlim(-60,2650)
+    
+    plt.xlabel(f'{x_label}', fontsize=14)
+    plt.ylabel(f'{y_label}', fontsize=14)
+    # ticks
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+
+    plt.title(f'{y} vs {x}', fontsize=12)
+    plt.grid(True)
+    
+    plt.tight_layout()
+    plt.savefig(f'../output/{nombre_grafico}_dQdVvsCellV.png', dpi=300)
+    plt.show()
+    return
 
 
 def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=False):
@@ -421,7 +548,7 @@ def plot_n_cycles(indices_ciclos, dict, x, y, nombre_grafico='plot', scatter=Fal
 
     plt.figure(figsize=(8,5))
     #plt.rcParams.update({'font.size': 12})
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict[i]['Ch']
@@ -527,7 +654,7 @@ def plot_n_cycles_superpuesto(indices_ciclos, dict, x, y, nombre_grafico='plot',
 
     fig, ax = plt.subplots(figsize=(8,5))
     ax2 = ax.twinx()
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict[i]['Ch']
@@ -589,7 +716,7 @@ def plot_n_cycles_withCurrent(indices_ciclos, dict, x, y, nombre_grafico='plot',
     ax1 = fig.add_subplot(gs[0])  # eje superior
     ax2 = fig.add_subplot(gs[1], sharex=ax1)  # eje inferior, comparte eje x
     
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict[i]['Ch']

@@ -13,7 +13,9 @@ from scipy.signal import savgol_filter
 Funciones para trabajar con las derivadas IC, DV.
 
 '''
-# ----------- tools -------------
+#-------------------------------------------------------------
+#  Preparar señal para derivar
+#-------------------------------------------------------------
 
 def truncar_señal(indices_ciclos, dict_ciclos_sep, Q='Q', CellV='CellV', n_dis=(10,0), n_ch=(30,0)):
     '''
@@ -69,6 +71,152 @@ def truncar_señal(indices_ciclos, dict_ciclos_sep, Q='Q', CellV='CellV', n_dis=
     return dict_truncado
 
 
+def truncar_señal_npuntos(indices_ciclos, dict_ciclos_sep, Q='Q', CellV='CellV', n_dis=(10,0), n_ch=(30,0)):
+    '''
+    Trunca la señal eliminando extremos. Devuelve dict listo para usar con las otras funciones graficadoras.
+    Parámetros
+    ----------
+    indices_ciclos : list[int]
+        Ciclos a procesar.
+    dict_ciclos_sep : dict
+        Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
+    n_dis : tuple, opcional
+        Número de puntos a truncar al INICIO y FINAL de la descarga. Por defecto (10, 0).
+    n_ch : tuple, opcional
+        Número de puntos a truncar al INICIO y FINAL de la carga. Por defecto (30, 0).
+
+    Retorna
+    -------
+    dict
+        Diccionario con DataFrames truncados por ciclo (con todas sus columnas originales).
+    '''
+    dict_truncado = {}
+
+    for i in indices_ciclos:
+        df_ch  = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        # Calcular los límites de filas a conservar
+        fin_ch  = len(df_ch)  - n_ch[1]  if n_ch[1]  > 0 else len(df_ch)
+        fin_dis = len(df_dis) - n_dis[1] if n_dis[1] > 0 else len(df_dis)
+
+        # Truncar usando iloc para conservar TODAS las columnas
+        df_ch_trunc  = df_ch.iloc[n_ch[0]  : fin_ch].reset_index(drop=True)
+        df_dis_trunc = df_dis.iloc[n_dis[0] : fin_dis].reset_index(drop=True)
+
+        dict_truncado[i] = {
+            'Ch':  df_ch_trunc,
+            'Dis': df_dis_trunc
+        }
+
+    return dict_truncado
+
+
+def truncar_ciclos_voltaje(indices_ciclos, dict_ciclos_sep, 
+                   v_cutoff_ch=[None, None], v_cutoff_dis=[None, None],
+                   CellV='CellV'):
+    '''
+    Trunca los ciclos filtrando por rango de voltaje.
+
+    Parámetros
+    ----------
+    dict_ciclos_sep : dict
+        Diccionario con DataFrames de ciclos separados en 'Ch' y 'Dis'.
+    indices_ciclos : list[int]
+        Ciclos a procesar.
+    v_cutoff_ch : list[float | None]
+        [voltaje_min, voltaje_max] para la carga. None = sin límite en ese extremo.
+    v_cutoff_dis : list[float | None]
+        [voltaje_min, voltaje_max] para la descarga. None = sin límite en ese extremo.
+    CellV : str
+        Nombre de la columna de voltaje.
+
+    Retorna
+    -------
+    dict
+        Diccionario con la misma estructura que dict_ciclos_sep, con DataFrames truncados.
+    '''
+    def filtrar_df(df, v_min, v_max):
+        mask = pd.Series(True, index=df.index)
+        if v_min is not None:
+            mask &= df[CellV] >= v_min
+        if v_max is not None:
+            mask &= df[CellV] <= v_max
+        return df[mask].reset_index(drop=True)
+
+    dict_truncado = {}
+
+    for i in indices_ciclos:
+        dict_truncado[i] = {
+            'Ch':  filtrar_df(dict_ciclos_sep[i]['Ch'],  *v_cutoff_ch),
+            'Dis': filtrar_df(dict_ciclos_sep[i]['Dis'], *v_cutoff_dis),
+        }
+
+    return dict_truncado
+
+
+def aplicar_filtro(indices_ciclos, dict_ciclos_sep, Q='Q', CellV='CellV', wl_dis=51, wl_ch=153, polyorder=3,):
+
+    for i in indices_ciclos:
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        Q_ch = df_ch[Q].values
+        V_ch = df_ch[CellV].values
+        Q_dis = df_dis[Q].values
+        V_dis = df_dis[CellV].values
+
+        # Aplica filtro Savitzky-Golay (smooth de la señal)
+        df_ch['Q_ch_savgol'] = savgol_filter(Q_ch, window_length=wl_ch, polyorder=polyorder)
+        df_ch['CellV_V_savgol'] = savgol_filter(V_ch, window_length=wl_ch, polyorder=polyorder)
+        df_dis['Q_dis_savgol'] = savgol_filter(Q_dis, window_length=wl_dis, polyorder=polyorder)
+        df_dis['CellV_V_savgol'] = savgol_filter(V_dis, window_length=wl_dis, polyorder=polyorder)
+
+        # Derivada dV/dt calculada directo de la señal suavizada
+        dt = 10
+        df_ch['dvdt_calcsv'] = savgol_filter(V_ch, window_length=wl_ch, polyorder=3, deriv=1, delta=dt)
+        df_dis['dvdt_calcsv'] = savgol_filter(V_dis, window_length=wl_dis, polyorder=3, deriv=1, delta=dt)
+
+        #print(df_ch.columns)
+        #print(df_dis.columns)
+
+        df_ch['dvdq_calcsv'] = df_ch['dvdt_calcsv'] * 1/df_ch['Current_mA']
+        df_dis['dvdq_calcsv'] = df_dis['dvdt_calcsv'] * 1/df_dis['Current_mA']
+
+        df_ch['dqdv_calcsv'] = 1/df_ch['dvdq_calcsv']
+        df_dis['dqdv_calcsv'] = 1/df_dis['dvdq_calcsv']
+
+        
+    print(dict_ciclos_sep[10]['Ch'].columns)
+    print(dict_ciclos_sep[10]['Dis'].columns)
+
+    return dict_ciclos_sep
+
+
+def calcular_dVdQ(indices_ciclos, dict_ciclos_sep, Q='Q', CellV='CellV_V_savgol'):
+    
+    for i in indices_ciclos:
+        df_ch = dict_ciclos_sep[i]['Ch']
+        df_dis = dict_ciclos_sep[i]['Dis']
+
+        Q_ch = df_ch[Q].values
+        V_ch = df_ch[CellV].values
+        Q_dis = df_dis[Q].values
+        V_dis = df_dis[CellV].values
+
+        # Calcula dQdV
+        df_ch['dvdq_calc'] = np.gradient(V_ch, Q_ch)
+        df_dis['dvdq_calc'] = np.gradient(V_dis, Q_dis)
+
+        df_ch['dqdv_calc'] = 1/df_ch['dvdq_calc']
+        df_dis['dqdv_calc'] = 1/df_dis['dvdq_calc']
+
+    return dict_ciclos_sep
+
+
+
+# ----------- tools de prueba -------------
+
 def extender_señal(indices_ciclos, dict_ciclos_sep):
     '''
     Extiende señal conservando la pendiente. Devuelve dict listo para usar con las otras funciones graficadoras.
@@ -82,7 +230,7 @@ def extender_señal(indices_ciclos, dict_ciclos_sep):
     factor = 20
     n = factor * (windowlength - 1) // 2  # cantidad extendida (mitad de un wl)
 
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict_ciclos_sep[i]['Ch']
@@ -250,7 +398,7 @@ def plot_dqdv_muchos_wl(indices_ciclos, diccio, wl_values_ch=None, wl_values_dis
 
     fig, axs = plt.subplots(nrows, ncols, figsize=(12, 3 * nrows), sharex=True, sharey=True)
     axs = axs.flatten()
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for idx, (ax, wl_dis) in enumerate(zip(axs, windowlengths_dis)):
         wl_ch = windowlengths_ch[idx]
@@ -325,7 +473,7 @@ def extender_señal_y_plot(indices_ciclos, dict_ciclos_sep):
     n = factor * (windowlength - 1) // 2  # cantidad extendida (mitad de un wl)
 
     plt.figure(figsize=(8,5))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     count=0
 
@@ -428,7 +576,7 @@ def truncar_señal_y_plot(indices_ciclos, dict_ciclos_sep):
     n_ch = n_dis * 3
 
     plt.figure(figsize=(9,5.6))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
     count = 0
 
     for i, color in zip(indices_ciclos, colors):
@@ -515,7 +663,7 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, Q='Q', CellV='CellV', wl_dis=51, w
 
     # Graficar dQ/dV calculado
     plt.figure(figsize=(8,5))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict_ciclos_sep[i]['Ch']
@@ -552,7 +700,7 @@ def plot_dqdV(indices_ciclos,dict_ciclos_sep, Q='Q', CellV='CellV', wl_dis=51, w
         if plt.colorbar == True:
             # Crear colorbar asociada a los ciclos
             norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
-            sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+            sm = cm.ScalarMappable(cmap=plt.colormaps['viridis'], norm=norm)
             sm.set_array([])  # requerido
             cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
             cbar.set_label('Cycle number')
@@ -578,7 +726,7 @@ def plot_dVdq(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3,
 
     # Graficar dVdQ calculado
     plt.figure(figsize=(8,5))
-    colors = cm.viridis(np.linspace(0, 1, len(indices_ciclos)))
+    colors = plt.colormaps['viridis'](np.linspace(0, 1, len(indices_ciclos)))
 
     for i, color in zip(indices_ciclos, colors):
         df_ch = dict_ciclos_sep[i]['Ch']
@@ -618,7 +766,7 @@ def plot_dVdq(indices_ciclos,dict_ciclos_sep, wl_dis=51, wl_ch=153, polyorder=3,
         if plt.colorbar == True:
             # Crear colorbar asociada a los ciclos
             norm = mcolors.Normalize(vmin=min(indices_ciclos), vmax=max(indices_ciclos))
-            sm = cm.ScalarMappable(cmap=cm.viridis, norm=norm)
+            sm = cm.ScalarMappable(cmap=plt.colormaps['viridis'], norm=norm)
             sm.set_array([])  # requerido
             cbar = plt.colorbar(sm, ax=plt.gca(), ticks=indices_ciclos[::2])
             cbar.set_label('Cycle number')

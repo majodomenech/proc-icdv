@@ -12,113 +12,160 @@ import json
 '''
 Funciones para cargar y procesar datos de ciclos de carga/descarga de baterías.
 
+Si están crudos experimentales, hay que procesar una sola vez con las funciones de Arbin o Bview, y luego guardar un JSON con los datos ya procesados.
+Luego, para análisis posteriores, se carga el JSON con la función cargar_json, que devuelve un dict_ciclos_sep = {ciclo: {"Ch": df_ciclo_ch, "Dis": df_ciclo_dis}}. 
+Uso: dict_ciclos_sep[100]['Ch'] devuelve el DataFrame de carga del ciclo 100, si existe.
+
 '''
 
-# -------  Procesamiento de datos --------------------------------------------------------------------
+# --------------------------------------------------------------------------------------
+# Procesar datos crudos de ARBIN (xls → csv → dict_ciclos_sep)
+# --------------------------------------------------------------------------------------
 
-def cargar_json(path_json):
+# --- Arbin ---
+def arbin_excel_a_csv(file_in, carpeta_out):
     """
-    Carga un archivo JSON y devuelve un diccionario estructurado por ciclos y etapas.
-    Cada valor es un DataFrame con los datos de esa etapa.
-    Ejemplo:
-        dict_ciclos_sep[100]['Ch'] -> DataFrame del ciclo 100 en carga.
+    Convierte todas las hojas Channel del Excel Arbin a CSV.
+    Se saltean hojas Global y Statistics.
     """
-    path_json = Path(path_json)
-    with open(path_json, "r") as f:
-        raw_dict = json.load(f)
+    file_in = Path(file_in)
+    carpeta_out = Path(carpeta_out)
+    carpeta_out.mkdir(exist_ok=True, parents=True)
 
-    dict_ciclos_sep = {
-        int(ciclo): {
-            etapa: pd.DataFrame(data) for etapa, data in etapas.items()
-        }
-        for ciclo, etapas in raw_dict.items()
+    xls = pd.ExcelFile(file_in)
+
+    for sheet in xls.sheet_names:
+        if str(sheet).startswith("Global") or str(sheet).startswith("Statistics"):
+            continue
+
+        df = pd.read_excel(file_in, sheet_name=sheet)
+        df.to_csv(carpeta_out / f"{sheet}.csv", index=False)
+        print(f"Guardado: {carpeta_out / f'{sheet}.csv'}")
+
+    print("Conversión a CSV terminada.")
+
+
+def cargar_csv_arbin(carpeta_csv):
+    """
+    Carga todos los CSV generados desde un Excel Arbin.
+    Devuelve un único DataFrame concatenado.
+    """
+    carpeta_csv = Path(carpeta_csv)
+    archivos = sorted(carpeta_csv.glob("*.csv"))
+
+    if not archivos:
+        raise ValueError("No se encontraron CSV en la carpeta.")
+
+    dfs = [pd.read_csv(f) for f in archivos]
+    df_all = pd.concat(dfs, ignore_index=True)
+
+    return df_all
+
+
+def procesar_arbin(df_all):
+    """
+    Recibe el df_all ya cargado desde CSV.
+    Devuelve:
+      - dict_ciclos       : dict {ciclo: df_ciclo completo}
+      - dict_ciclos_sep   : dict {ciclo: {"Ch": df_ch, "Dis": df_dis}}
+      - indices_ciclos    : lista ordenada de ciclos
+
+    Columnas de cada df_ch / df_dis:
+      - Time_s          : tiempo relativo al step [s]
+      - Time_cont_s     : tiempo continuo dentro del ciclo [s]
+      - Current_mA      : corriente [mA]
+      - CellV_V         : voltaje de celda [V]
+      - Q_mAh           : capacidad integrada por Arbin [mAh]
+      - Energy_Wh       : energía integrada por Arbin [Wh]
+      - dVdt_Vs         : dV/dt calculada por Arbin [V/s]
+    """
+
+    columnas = {
+        'time'     : 'Test_Time(s)',
+        'cycle'    : 'Cycle_Index',
+        'current'  : 'Current(A)',
+        'step_time': 'Step_Time(s)',
+        'voltage'  : 'Voltage(V)',
+        'Q_dis'    : 'Discharge_Capacity(Ah)',
+        'Q_cha'    : 'Charge_Capacity(Ah)',
+        'E_dis'    : 'Discharge_Energy(Wh)',
+        'E_cha'    : 'Charge_Energy(Wh)',
+        'dVdt'     : 'dV/dt(V/s)',
     }
 
-    print('Estructura: dict_ciclos_sep = {ciclo: {"Ch": df_ciclo_ch, "Dis": df_ciclo_dis}}')
-    print(f"Total de ciclos en el JSON: {len(dict_ciclos_sep)}")
+    dict_ciclos = {}
+    dict_ciclos_sep = {}
 
-    return dict_ciclos_sep
+    for ciclo, grupo in df_all.groupby(columnas['cycle']):
+        
+        # Acá trabajo en el dataframe de cada ciclo en particular
+        df_ciclo = grupo.copy().reset_index(drop=True)
+        dict_ciclos[ciclo] = df_ciclo
+
+        # Separar carga y descarga por signo de corriente
+        df_ch  = df_ciclo[df_ciclo[columnas['current']] > 0].copy()
+        df_dis = df_ciclo[df_ciclo[columnas['current']] < 0].copy()
+
+        # Tiempo relativo al step [s]
+        # step=2 es la carga (corriente positiva), step=3 es la descarga (corriente negativa)
+        df_ch ['Time_s'] = df_ch [columnas['step_time']]
+        df_dis['Time_s'] = df_dis[columnas['step_time']]
+
+        # Corriente [mA]
+        df_ch ['Current_mA'] = df_ch [columnas['current']] * 1000
+        df_dis['Current_mA'] = df_dis[columnas['current']] * 1000
+
+        # Voltaje [V]
+        df_ch ['CellV_V'] = df_ch [columnas['voltage']]
+        df_dis['CellV_V'] = df_dis[columnas['voltage']]
+
+        # Capacidad integrada por Arbin [mAh]
+        df_ch ['Q_mAh'] = df_ch [columnas['Q_cha']] * 1000
+        df_dis['Q_mAh'] = df_dis[columnas['Q_dis']] * 1000
+
+        # Energía integrada por Arbin [Wh]
+        df_ch ['Energy_Wh'] = df_ch [columnas['E_cha']]
+        df_dis['Energy_Wh'] = df_dis[columnas['E_dis']]
+
+        # dV/dt de Arbin [V/s]
+        df_ch ['dVdt_Vs'] = df_ch [columnas['dVdt']]
+        df_dis['dVdt_Vs'] = df_dis[columnas['dVdt']]
+
+        # dQ/dV = I * dt/dV = I / (dV/dt),  [mAh/V]
+        # donde dV/dt=0 se enmascara con NaN para no propagar inf
+        for df in [df_ch, df_dis]:
+            dVdt_safe = df['dVdt_Vs'].replace(0, np.nan)
+            df['dQdV_mAhV'] = (df['Current_mA'] / 3600) / dVdt_safe
+        
+        # Tiempo continuo: encadenar el segundo semi-ciclo detrás del primero
+        df_ch ['Time_cont_s'] = df_ch ['Time_s']
+        df_dis['Time_cont_s'] = df_dis['Time_s']
+
+        if len(df_ch) > 0 and len(df_dis) > 0:
+            ch_va_primero = (df_ciclo[df_ciclo[columnas['current']] > 0][columnas['time']].iloc[0] < 
+                 df_ciclo[df_ciclo[columnas['current']] < 0][columnas['time']].iloc[0])
+            if ch_va_primero:
+                offset = df_ch['Time_s'].iloc[-1]
+                df_dis['Time_cont_s'] = df_dis['Time_s'] + offset
+            else:
+                offset = df_dis['Time_s'].iloc[-1]
+                df_ch['Time_cont_s'] = df_ch['Time_s'] + offset
+
+        # Me quedo con las columnas finales de interés
+        cols_finales = ['Time_s', 'Time_cont_s', 'Current_mA', 'CellV_V', 'Q_mAh', 'Energy_Wh', 'dVdt_Vs', 'dQdV_mAhV']
+
+        df_ch  = df_ch [cols_finales].reset_index(drop=True)
+        df_dis = df_dis[cols_finales].reset_index(drop=True)
+
+        dict_ciclos_sep[ciclo] = {"Ch": df_ch, "Dis": df_dis}
+
+    indices_ciclos = sorted(dict_ciclos.keys())
+    return dict_ciclos, dict_ciclos_sep, indices_ciclos
 
 
-def crear_json(dict_ciclos_sep, output_path):
-    """
-    Crea un archivo JSON a partir de un diccionario dict_ciclos_sep.
-    Convierte las claves de ciclo a strings y los DataFrames a diccionarios serializables.
-    """
-    serializable_dict = {
-        str(ciclo): {
-            etapa: df.to_dict(orient='list') for etapa, df in etapas.items()
-        }
-        for ciclo, etapas in dict_ciclos_sep.items()
-    }
-
-    with open(output_path, 'w') as f_json:
-        json.dump(serializable_dict, f_json)
-
-    print(f"Archivo JSON creado en: {output_path}")
-
-
-def seleccionar_ciclos(
-    dict_ciclos_sep,
-    n_ciclos=None,
-    rango=None,
-    excluir=None,
-    manual=None,
-    verbose=True
-):
-    """
-    Selecciona los ciclos a analizar de un diccionario dict_ciclos_sep.
-
-    Parámetros
-    ----------
-    dict_ciclos_sep : dict
-        Diccionario con los ciclos (claves enteras).
-    n_ciclos : int, opcional
-        Número de ciclos equiespaciados a tomar (por defecto toma todos).
-    rango : tuple[int, int], opcional
-        Rango de ciclos (min, max) a considerar.
-    excluir : list[int] | set[int], opcional
-        Ciclos a excluir.
-    manual : list[int], opcional
-        Si se pasa, usa directamente estos ciclos.
-    verbose : bool, opcional
-        Si es True, imprime un resumen.
-
-    Retorna
-    -------
-    list[int]
-        Lista ordenada de ciclos seleccionados.
-    """
-    ciclos = sorted(dict_ciclos_sep.keys())
-    #ciclos = sorted(dict_ciclos_sep.keys())[:-1]  # excluye último
-
-    # Filtrar rango
-    if rango:
-        ciclos = [c for c in ciclos if rango[0] <= c <= rango[1]]
-
-    # Excluir
-    if excluir:
-        excluir = set(excluir)
-        ciclos = [c for c in ciclos if c not in excluir]
-
-    # Selección manual
-    if manual:
-        seleccionados = [c for c in manual if c in ciclos]
-    else:
-        if n_ciclos is None or n_ciclos >= len(ciclos):
-            seleccionados = ciclos
-        else:
-            seleccionados = np.array(ciclos)[
-                np.linspace(0, len(ciclos) - 1, n_ciclos, dtype=int)
-            ].tolist()
-
-    if verbose:
-        print(f"✅ {len(seleccionados)} ciclos seleccionados")
-        #print(f"   → {seleccionados[:10]}{'...' if len(seleccionados) > 10 else ''}")
-        print(f"   → {seleccionados[:]}")
-
-    return seleccionados
-
+# --------------------------------------------------------------------------------------
+# Procesar datos crudos de Bview (csv → dict_ciclos_sep)
+# --------------------------------------------------------------------------------------
 
 # --- Bview ---
 def carga_y_procesa_datos(input_file):
@@ -224,109 +271,110 @@ def carga_y_procesa_datos(input_file):
 
     return dict_ciclos, dict_ciclos_sep, indices_ciclos
 
-# --- Arbin ---
-def arbin_excel_a_csv(file_in, carpeta_out):
+
+# --------------------------------------------------------------------------------------
+# Cargar y utilizar JSON con datos ya procesados
+# --------------------------------------------------------------------------------------
+
+def cargar_json(path_json):
     """
-    Convierte todas las hojas Channel del Excel Arbin a CSV.
-    Se saltean hojas Global y Statistics.
+    Carga un archivo JSON y devuelve un diccionario estructurado por ciclos y etapas.
+    Cada valor es un DataFrame con los datos de esa etapa.
+    Ejemplo:
+        dict_ciclos_sep[100]['Ch'] -> DataFrame del ciclo 100 en carga.
     """
-    file_in = Path(file_in)
-    carpeta_out = Path(carpeta_out)
-    carpeta_out.mkdir(exist_ok=True, parents=True)
+    path_json = Path(path_json)
+    with open(path_json, "r") as f:
+        raw_dict = json.load(f)
 
-    xls = pd.ExcelFile(file_in)
-
-    for sheet in xls.sheet_names:
-        if sheet.startswith("Global") or sheet.startswith("Statistics"):
-            continue
-
-        df = pd.read_excel(file_in, sheet_name=sheet)
-        df.to_csv(carpeta_out / f"{sheet}.csv", index=False)
-        print(f"Guardado: {carpeta_out / f'{sheet}.csv'}")
-
-    print("Conversión a CSV terminada.")
-
-
-def cargar_csv_arbin(carpeta_csv):
-    """
-    Carga todos los CSV generados desde un Excel Arbin.
-    Devuelve un único DataFrame concatenado.
-    """
-    carpeta_csv = Path(carpeta_csv)
-    archivos = sorted(carpeta_csv.glob("*.csv"))
-
-    if not archivos:
-        raise ValueError("No se encontraron CSV en la carpeta.")
-
-    dfs = [pd.read_csv(f) for f in archivos]
-    df_all = pd.concat(dfs, ignore_index=True)
-
-    return df_all
-
-
-def procesar_arbin(df_all):
-    """
-    Recibe el df_all ya cargado desde CSV.
-    Devuelve:
-      - dict_ciclos
-      - dict_ciclos_sep
-      - indices_ciclos
-    """
-
-    columnas = {
-        'time': 'Test_Time(s)',
-        'cycle': 'Cycle_Index',
-        'current': 'Current(A)',
-        'step_time': 'Step_Time(s)',
-        'voltage': 'Voltage(V)',
+    dict_ciclos_sep = {
+        int(ciclo): {
+            etapa: pd.DataFrame(data) for etapa, data in etapas.items()
+        }
+        for ciclo, etapas in raw_dict.items()
     }
 
-    dict_ciclos = {}
-    dict_ciclos_sep = {}
+    print('Estructura: dict_ciclos_sep = {ciclo: {"Ch": df_ciclo_ch, "Dis": df_ciclo_dis}}')
+    print(f"Total de ciclos en el JSON: {len(dict_ciclos_sep)}")
 
-    for ciclo, grupo in df_all.groupby(columnas['cycle']):
-        df_ciclo = grupo.copy().reset_index(drop=True)
-        dict_ciclos[ciclo] = df_ciclo
-
-        # Carga y descarga
-        df_ch  = df_ciclo[df_ciclo[columnas['current']] > 0].copy()
-        df_dis = df_ciclo[df_ciclo[columnas['current']] < 0].copy()
-
-        # Tiempo relativo tipo BView
-        df_ch['Time']  = df_ch[columnas['step_time']].cumsum() / 3600
-        df_dis['Time'] = df_dis[columnas['step_time']].cumsum() / 3600
-
-        # === NUEVO: concatenar tiempos Ch→Dis ===
-        if len(df_ch) > 0 and len(df_dis) > 0:
-            df_dis['Time'] += df_ch['Time'].iloc[-1]
-        # ========================================
-
-        # Corriente en mA
-        df_ch['Current_mA']  = df_ch[columnas['current']] * 1000
-        df_dis['Current_mA'] = df_dis[columnas['current']] * 1000
-
-        # Capacidad equivalente Q = I[mA] * t[h]
-        df_ch['Q']  = df_ch['Time'] * abs(df_ch['Current_mA'])
-        df_dis['Q'] = df_dis['Time'] * abs(df_dis['Current_mA'])
+    return dict_ciclos_sep
 
 
-        # === NUEVO: renombrar columnas estilo BView ===
-        df_ch['Current'] = df_ch[columnas['current']]
-        df_dis['Current'] = df_dis[columnas['current']]
+def crear_json(dict_ciclos_sep, output_path):
+    """
+    Crea un archivo JSON a partir de un diccionario dict_ciclos_sep.
+    Convierte las claves de ciclo a strings y los DataFrames a diccionarios serializables.
+    """
+    serializable_dict = {
+        str(ciclo): {
+            etapa: df.to_dict(orient='list') for etapa, df in etapas.items()
+        }
+        for ciclo, etapas in dict_ciclos_sep.items()
+    }
 
-        df_ch['CellV'] = df_ch[columnas['voltage']]
-        df_dis['CellV'] = df_dis[columnas['voltage']]
+    with open(output_path, 'w') as f_json:
+        json.dump(serializable_dict, f_json)
 
-        # Dejar SOLO las 4 columnas finales estilo BView
-        df_ch = df_ch[['Time', 'Current', 'CellV', 'Q']]
-        df_dis = df_dis[['Time', 'Current', 'CellV', 'Q']]
-        # ===============================================
+    print(f"Archivo JSON creado en: {output_path}")
 
 
-        df_ch.reset_index(drop=True, inplace=True)
-        df_dis.reset_index(drop=True, inplace=True)
+def seleccionar_ciclos(
+    dict_ciclos_sep,
+    n_ciclos=None,
+    rango=None,
+    excluir=None,
+    manual=None,
+    verbose=True
+):
+    """
+    Selecciona los ciclos a analizar de un diccionario dict_ciclos_sep.
 
-        dict_ciclos_sep[ciclo] = {"Ch": df_ch, "Dis": df_dis}
+    Parámetros
+    ----------
+    dict_ciclos_sep : dict
+        Diccionario con los ciclos (claves enteras).
+    n_ciclos : int, opcional
+        Número de ciclos equiespaciados a tomar (por defecto toma todos).
+    rango : tuple[int, int], opcional
+        Rango de ciclos (min, max) a considerar.
+    excluir : list[int] | set[int], opcional
+        Ciclos a excluir.
+    manual : list[int], opcional
+        Si se pasa, usa directamente estos ciclos.
+    verbose : bool, opcional
+        Si es True, imprime un resumen.
 
-    indices_ciclos = sorted(dict_ciclos.keys())
-    return dict_ciclos, dict_ciclos_sep, indices_ciclos
+    Retorna
+    -------
+    list[int]
+        Lista ordenada de ciclos seleccionados.
+    """
+    ciclos = sorted(dict_ciclos_sep.keys())
+    #ciclos = sorted(dict_ciclos_sep.keys())[:-1]  # excluye último
+
+    # Filtrar rango
+    if rango:
+        ciclos = [c for c in ciclos if rango[0] <= c <= rango[1]]
+
+    # Excluir
+    if excluir:
+        excluir = set(excluir)
+        ciclos = [c for c in ciclos if c not in excluir]
+
+    # Selección manual
+    if manual:
+        seleccionados = [c for c in manual if c in ciclos]
+    else:
+        if n_ciclos is None or n_ciclos >= len(ciclos):
+            seleccionados = ciclos
+        else:
+            seleccionados = np.array(ciclos)[
+                np.linspace(0, len(ciclos) - 1, n_ciclos, dtype=int)
+            ].tolist()
+
+    if verbose:
+        print(f"✅ {len(seleccionados)} ciclos seleccionados")
+        #print(f"   → {seleccionados[:10]}{'...' if len(seleccionados) > 10 else ''}")
+        print(f"   → {seleccionados[:]}")
+
+    return seleccionados
